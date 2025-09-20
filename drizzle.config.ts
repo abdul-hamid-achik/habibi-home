@@ -1,7 +1,6 @@
 import 'dotenv/config';
-import { defineConfig } from 'drizzle-kit';
 
-export default defineConfig({
+export default {
   dialect: 'postgresql',
   schema: './src/lib/db/schema.ts',
   out: './drizzle',
@@ -10,4 +9,4 @@ export default defineConfig({
       ? process.env.DATABASE_URL!
       : 'postgres://neon:npg@localhost:5432/neondb?sslmode=no-verify',
   },
-});
+};
