@@ -1,5 +1,5 @@
 import { StackHandler } from "@stackframe/stack";
-import { stackServerApp } from "@/lib/stack-auth";
+import { stackServerApp } from "@/lib/stack-auth-server";
 
 export async function GET(request: Request) {
     return await StackHandler({

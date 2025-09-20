@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { importedFloorPlans } from '@/lib/db/schema';
-import { stackServerApp } from '@/lib/stack-auth';
+import { stackServerApp } from '@/lib/stack-auth-server';
 import { eq } from 'drizzle-orm';
 
 const openai = new OpenAI({
