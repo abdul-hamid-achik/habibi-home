@@ -2,7 +2,6 @@ import { StackProvider, StackTheme } from "@stackframe/stack";
 import { stackServerApp } from "@/app/stack";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
     icon: '/favicon.ico',
   },
 };
-
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -26,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}><StackProvider app={stackServerApp}><StackTheme>
-        <Providers>{children}</Providers>
+        {children}
       </StackTheme></StackProvider></body>
     </html>
   );
