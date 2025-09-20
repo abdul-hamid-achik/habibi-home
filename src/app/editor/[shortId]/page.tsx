@@ -84,8 +84,9 @@ export default function ImportedEditorPage() {
         w: zone.w,
         h: zone.h,
         color: undefined,
+        type: zone.type,
         // Add default suggested furniture if not provided
-        suggestedFurniture: (zone as any).suggestedFurniture || getDefaultFurnitureForZone(zone.name, zone.type),
+        suggestedFurniture: zone.suggestedFurniture || getDefaultFurnitureForZone(zone.name, zone.type || ''),
     }));
 
     // Helper function to get default furniture suggestions based on zone type

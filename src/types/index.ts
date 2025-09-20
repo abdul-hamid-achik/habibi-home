@@ -10,6 +10,8 @@ export interface FloorPlanZone {
   w: number;
   h: number;
   color?: string;
+  type?: string;
+  suggestedFurniture?: string[];
 }
 
 export interface FurnitureItemType {

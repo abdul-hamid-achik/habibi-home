@@ -174,12 +174,11 @@ JSON format (respond with ONLY this JSON, no other text):
 function validateAndOptimizeZones(zones: Zone[], canvasWidth: number, canvasHeight: number): Zone[] {
   const optimizedZones: Zone[] = [];
   const MIN_ZONE_SIZE = 50; // Minimum zone dimension in cm
-  const MIN_ZONE_AREA = 2500; // Minimum zone area in cm²
   const OVERLAP_THRESHOLD = 0.3; // Maximum allowed overlap (30%)
 
-  zones.forEach((zone, index) => {
+  zones.forEach((zone) => {
     // Validate zone dimensions
-    let optimizedZone = { ...zone };
+    const optimizedZone = { ...zone };
 
     // Ensure minimum dimensions
     if (zone.w < MIN_ZONE_SIZE) {

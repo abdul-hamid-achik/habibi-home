@@ -528,7 +528,7 @@ export function FloorPlanEditor({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editZones, selectedZoneId, selectedFurnitureId, zones, furniture, duplicateFurniture]);
+  }, [editZones, selectedZoneId, selectedFurnitureId, zones, furniture, duplicateFurniture, rotateFurniture]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
