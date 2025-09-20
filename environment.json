@@ -1,0 +1,33 @@
+{
+    "snapshot": "POPULATED_FROM_SETTINGS",
+    "install": "npm install",
+    "start": "npm run dev",
+    "terminals": [
+        {
+            "name": "Next.js Dev Server",
+            "command": "npm run dev"
+        },
+        {
+            "name": "Database Studio",
+            "command": "npm run db:studio",
+            "is_background": true
+        }
+    ],
+    "ports": [
+        {
+            "port": 3000,
+            "description": "Next.js development server"
+        },
+        {
+            "port": 4983,
+            "description": "Drizzle Studio database viewer"
+        }
+    ],
+    "env": {
+        "NODE_ENV": "development",
+        "DATABASE_URL": "postgresql://username:password@host:port/database?sslmode=require",
+        "NEXTAUTH_URL": "http://localhost:3000",
+        "NEXTAUTH_SECRET": "development-secret-key",
+        "NEON_API_KEY": "your-neon-api-key-here"
+    }
+}

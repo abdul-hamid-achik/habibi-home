@@ -1,36 +1,175 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Habibi Home - Floor Plan Designer
+
+A modern SaaS application for designing and visualizing furniture layouts in floor plans. Built with Next.js, Drizzle ORM, NeonDB, and React Moveable.
+
+## Features
+
+- **Interactive Floor Plan Editor**: Drag, resize, and rotate furniture pieces with real-time feedback
+- **Zone Management**: Edit and customize room zones/areas with precise measurements
+- **Furniture Catalog**: Comprehensive catalog with real furniture dimensions
+- **Snap-to-Grid**: Precise positioning with customizable grid snapping
+- **Project Management**: Save and load projects (coming soon)
+- **Authentication**: Secure user accounts with NextAuth (coming soon)
+- **Responsive Design**: Works on desktop and tablet devices
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI Library**: shadcn/ui components with Tailwind CSS
+- **Database**: NeonDB (PostgreSQL) with Drizzle ORM
+- **Authentication**: NextAuth.js
+- **Deployment**: Vercel-ready
+- **Editor**: React Moveable for interactive elements
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- npm or yarn
+- NeonDB account (for production)
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd habibi.home
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Fill in your environment variables:
+```env
+# Database (NeonDB)
+DATABASE_URL="postgresql://username:password@host:port/database?sslmode=require"
 
-## Learn More
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-here"
 
-To learn more about Next.js, take a look at the following resources:
+# OAuth Providers (optional)
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GITHUB_ID="your-github-client-id"
+GITHUB_SECRET="your-github-client-secret"
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Set up the database:
+```bash
+# Generate database migrations
+npm run db:generate
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Push to database (for development)
+npm run db:push
 
-## Deploy on Vercel
+# Or run migrations (for production)
+npm run db:migrate
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Start the development server:
+```bash
+npm run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000) to see the application.
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js app router
+│   ├── api/               # API routes
+│   ├── editor/            # Floor plan editor page
+│   └── ...
+├── components/
+│   ├── ui/                # shadcn/ui components
+│   └── floor-plan/        # Floor plan editor components
+├── lib/
+│   ├── db/                # Database configuration and schema
+│   ├── auth.ts            # NextAuth configuration
+│   └── furniture-catalog.ts  # Furniture definitions
+└── types/                 # TypeScript type definitions
+```
+
+## Database Schema
+
+The application uses the following main tables:
+
+- `users` - User accounts (NextAuth)
+- `projects` - User floor plan projects
+- `zones` - Room/area definitions within projects
+- `furniture_items` - Furniture pieces placed in projects
+- `furniture_catalog` - Available furniture templates
+- `project_settings` - Project display settings
+
+## Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run db:generate` - Generate database migrations
+- `npm run db:push` - Push schema to database (development)
+- `npm run db:migrate` - Run migrations (production)
+- `npm run db:studio` - Open Drizzle Studio
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Set up environment variables in Vercel dashboard
+4. Deploy!
+
+The application is optimized for Vercel deployment with:
+- Automatic builds with Next.js
+- Edge-optimized API routes
+- Database connection pooling
+
+### Environment Variables for Production
+
+Make sure to set these in your deployment environment:
+
+- `DATABASE_URL` - Your NeonDB connection string
+- `NEXTAUTH_URL` - Your production domain
+- `NEXTAUTH_SECRET` - A secure random string
+- OAuth provider credentials (if using)
+
+## Features in Development
+
+- [ ] User authentication and project ownership
+- [ ] Project sharing and collaboration
+- [ ] Custom furniture creation
+- [ ] Export to PDF/image formats
+- [ ] Template gallery
+- [ ] Mobile app support
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For questions or support, please [open an issue](https://github.com/your-username/habibi-home/issues) on GitHub.
+
+---
+
+**Built with ❤️ using modern web technologies**
