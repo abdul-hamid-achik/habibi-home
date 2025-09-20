@@ -449,6 +449,22 @@ export function FloorPlanEditor({
             }
             break;
 
+          case 'r':
+          case 'R':
+            if (selectedFurnitureId) {
+              event.preventDefault();
+              rotateFurniture(90);
+            }
+            break;
+
+          case 'e':
+          case 'E':
+            if (selectedFurnitureId) {
+              event.preventDefault();
+              rotateFurniture(-90);
+            }
+            break;
+
           case 'ArrowUp':
             if (furniture.length > 0) {
               event.preventDefault();
@@ -740,6 +756,8 @@ export function FloorPlanEditor({
                                 <div>↑↓ Navigate furniture</div>
                                 <div>⌫ Delete selected</div>
                                 <div>⌘D Duplicate</div>
+                                <div>R Rotate +90°</div>
+                                <div>E Rotate -90°</div>
                                 <div>Esc Clear selection</div>
                               </div>
                             </div>
@@ -1019,8 +1037,8 @@ export function FloorPlanEditor({
                 <Rnd
                   key={item.id}
                   default={{
-                    x: cm2px(item.x),
-                    y: cm2px(item.y),
+                    x: cm2px(item.x) + (item.r !== 0 ? cm2px((item.w / 2) * (1 - Math.cos((item.r * Math.PI) / 180)) + (item.h / 2) * Math.sin((item.r * Math.PI) / 180)) : 0),
+                    y: cm2px(item.y) + (item.r !== 0 ? cm2px((item.h / 2) * (1 - Math.cos((item.r * Math.PI) / 180)) - (item.w / 2) * Math.sin((item.r * Math.PI) / 180)) : 0),
                     width: cm2px(item.w),
                     height: cm2px(item.h)
                   }}
@@ -1033,15 +1051,52 @@ export function FloorPlanEditor({
                     setSelectedFurnitureId(item.id);
                   }}
                   onDragStop={(_e, d) => {
-                    const newX = snapCm(px2cm(d.x));
-                    const newY = snapCm(px2cm(d.y));
+                    // For rotated items, we need to account for the rotation when calculating position
+                    let newX = snapCm(px2cm(d.x));
+                    let newY = snapCm(px2cm(d.y));
+
+                    // If item is rotated, adjust position to maintain visual center
+                    if (item.r !== 0) {
+                      const radians = (item.r * Math.PI) / 180;
+                      const cos = Math.cos(radians);
+                      const sin = Math.sin(radians);
+                      const w = cm2px(item.w);
+                      const h = cm2px(item.h);
+
+                      // Calculate the offset caused by rotation
+                      const offsetX = (w / 2) * (1 - cos) + (h / 2) * sin;
+                      const offsetY = (h / 2) * (1 - cos) - (w / 2) * sin;
+
+                      newX = snapCm(px2cm(d.x - offsetX));
+                      newY = snapCm(px2cm(d.y - offsetY));
+                    }
+
                     updateFurniture(item.id, { x: newX, y: newY });
                   }}
                   onResizeStop={(e, direction, ref, delta, position) => {
                     const newW = Math.max(10, snapCm(px2cm(ref.offsetWidth)));
                     const newH = Math.max(10, snapCm(px2cm(ref.offsetHeight)));
-                    const newX = snapCm(px2cm(position.x));
-                    const newY = snapCm(px2cm(position.y));
+
+                    // For rotated items, we need to account for the rotation when calculating position
+                    let newX = snapCm(px2cm(position.x));
+                    let newY = snapCm(px2cm(position.y));
+
+                    // If item is rotated, adjust position to maintain visual center
+                    if (item.r !== 0) {
+                      const radians = (item.r * Math.PI) / 180;
+                      const cos = Math.cos(radians);
+                      const sin = Math.sin(radians);
+                      const w = cm2px(newW);
+                      const h = cm2px(newH);
+
+                      // Calculate the offset caused by rotation with new dimensions
+                      const offsetX = (w / 2) * (1 - cos) + (h / 2) * sin;
+                      const offsetY = (h / 2) * (1 - cos) - (w / 2) * sin;
+
+                      newX = snapCm(px2cm(position.x - offsetX));
+                      newY = snapCm(px2cm(position.y - offsetY));
+                    }
+
                     updateFurniture(item.id, { x: newX, y: newY, w: newW, h: newH });
                   }}
                   className={`${selectedFurnitureId === item.id ? 'z-40' : 'z-10'}`}
@@ -1161,6 +1216,14 @@ export function FloorPlanEditor({
                     <div className="flex justify-between">
                       <span>Duplicate furniture</span>
                       <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">⌘ D</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Rotate +90°</span>
+                      <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">R</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Rotate -90°</span>
+                      <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">E</kbd>
                     </div>
                     <div className="flex justify-between">
                       <span>Clear selection</span>
