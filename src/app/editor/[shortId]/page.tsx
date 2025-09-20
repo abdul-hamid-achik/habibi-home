@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { z } from 'zod';
-import FloorPlanEditor from "@/components/floor-plan/floor-plan-editor";
+import { EditorShell } from "@/features/floor_plan/editor/editor_shell";
 import { DiagramShape } from "@/components/floor-plan/konva-diagram-canvas";
 import { ImportedFloorPlanData, FloorPlanZone, FurnitureItemType, FloorPlanSettings, floorPlanZoneSchema, furnitureItemSchema, floorPlanSettingsSchema } from '@/types';
 import { DEFAULT_FURNITURE_CATALOG } from '@/lib/furniture-catalog';
@@ -393,7 +393,7 @@ export default function ImportedEditorPage() {
     }
 
     return (
-        <FloorPlanEditor
+        <EditorShell
             initialZones={zones}
             initialFurniture={furniture}
             initialSettings={settings}

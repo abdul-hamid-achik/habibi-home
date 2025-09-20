@@ -77,17 +77,24 @@ export function exportAsJSON(data: ExportData, options: ExportOptions): void {
   };
 
   // Filter data based on options
+  const filteredData = { ...exportData };
   if (!options.includeFurniture) {
-    delete exportData.furniture;
+    const { furniture, ...rest } = filteredData;
+    Object.assign(filteredData, rest);
   }
   if (!options.includeZones) {
-    delete exportData.zones;
+    const { zones, ...rest } = filteredData;
+    Object.assign(filteredData, rest);
   }
   if (!options.includeDiagrams) {
-    delete exportData.diagramShapes;
+    const { diagramShapes, ...rest } = filteredData;
+    Object.assign(filteredData, rest);
   }
 
-  const json = JSON.stringify(exportData, null, 2);
+  // Use filtered data for the rest of the function
+  const finalExportData = filteredData;
+
+  const json = JSON.stringify(finalExportData, null, 2);
   const filename = generateFilename(options.title || 'floor_plan', 'json');
   downloadFile(json, filename, 'application/json');
 }

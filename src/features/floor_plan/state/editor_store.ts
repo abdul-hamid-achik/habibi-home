@@ -15,6 +15,8 @@ export interface EditorState {
 
   // UI state
   editorMode: EditorMode;
+  selectedZoneId: string | null;
+  selectedFurnitureId: string | null;
   showAIImport: boolean;
   showKeyboardShortcuts: boolean;
 
@@ -25,6 +27,8 @@ export interface EditorState {
   setDiagrams: (diagrams: DiagramShape[] | ((prev: DiagramShape[]) => DiagramShape[])) => void;
 
   setEditorMode: (mode: EditorMode) => void;
+  setSelectedZoneId: (id: string | null) => void;
+  setSelectedFurnitureId: (id: string | null) => void;
   setShowAIImport: (show: boolean) => void;
   setShowKeyboardShortcuts: (show: boolean) => void;
 
@@ -83,6 +87,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   diagrams: [],
 
   editorMode: 'furniture',
+  selectedZoneId: null,
+  selectedFurnitureId: null,
   showAIImport: false,
   showKeyboardShortcuts: false,
 
@@ -105,6 +111,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // UI state setters
   setEditorMode: (editorMode) => set({ editorMode }),
+  setSelectedZoneId: (selectedZoneId) => set({ selectedZoneId }),
+  setSelectedFurnitureId: (selectedFurnitureId) => set({ selectedFurnitureId }),
   setShowAIImport: (showAIImport) => set({ showAIImport }),
   setShowKeyboardShortcuts: (showKeyboardShortcuts) => set({ showKeyboardShortcuts }),
 

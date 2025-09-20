@@ -34,7 +34,7 @@ interface LayerItem {
 interface LayersTabProps {
   zones: FloorPlanZone[];
   furniture: FurnitureItemType[];
-  diagramShapes: any[];
+  diagramShapes: unknown[];
   showGrid: boolean;
   backgroundImage?: {
     visible: boolean;

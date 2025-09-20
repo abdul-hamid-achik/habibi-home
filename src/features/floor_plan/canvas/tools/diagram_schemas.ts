@@ -161,7 +161,7 @@ export function createTextShape(
   x: number,
   y: number,
   text: string,
-  options: Partial<Pick<DiagramShape, 'fill' | 'stroke' | 'strokeWidth' | 'width' | 'height'>> = {}
+  options: Partial<Pick<DiagramShape, 'fill' | 'stroke' | 'strokeWidth'>> = {}
 ): DiagramShape {
   return text_shape_schema.parse({
     id,
@@ -172,8 +172,6 @@ export function createTextShape(
     fill: options.fill || '#000000',
     stroke: options.stroke || '#000000',
     strokeWidth: options.strokeWidth || 0,
-    width: options.width,
-    height: options.height,
   });
 }
 

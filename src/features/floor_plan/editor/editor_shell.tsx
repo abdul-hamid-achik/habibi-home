@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Layers } from "lucide-react";
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from "@/types";
 import { DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
-import { FloorPlanUploader } from "@/components/floor-plan/floor-plan-uploader";
 import { FloatingSettingsPanel } from "./settings/floating_settings_panel";
 import { DiagramShape } from "../canvas/tools/diagram_schemas";
 import { ModeToggle } from "./header/mode_toggle";
@@ -15,8 +14,12 @@ import { ZoneList } from "./sidebar/zone_list";
 import { FurnitureCatalog } from "./sidebar/furniture_catalog";
 import { SelectedFurniturePanel } from "./sidebar/selected_furniture_panel";
 import { KonvaStage } from "../canvas/konva_stage";
-import { useEditorStore } from "../state/editor_store";
+import { useEditorStore, EditorMode } from "../state/editor_store";
+import { cm2px, px2cm, snapToGrid } from "../utils/units";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { analyzeFloorPlan } from "../services/analysis";
 
 interface EditorShellProps {
     projectId?: string;
@@ -260,7 +263,7 @@ function EditorShell({
                 <div className="w-96 bg-white overflow-y-auto">
                     <div className="p-4">
                         {showAIImport ? (
-                            <FloorPlanUploader onAnalysisComplete={handleAIAnalysis} />
+                            <AIImportPanel onAnalysisComplete={handleAIAnalysis} />
                         ) : editorMode === 'diagrams' ? (
                             <div className="space-y-4">
                                 <Card>
@@ -328,7 +331,7 @@ function EditorShell({
                         onFurnitureSelect={setSelectedFurnitureId}
                         onFurnitureUpdate={updateFurniture}
                         onDiagramExport={handleDiagramExport}
-                        containerRef={canvasContainerRef}
+                        containerRef={canvasContainerRef as React.RefObject<HTMLDivElement>}
                         className="w-full h-full"
                     />
                 </div>
@@ -337,7 +340,7 @@ function EditorShell({
             {/* Floating Settings Panel */}
             <FloatingSettingsPanel
                 settings={settings}
-                onSettingsChange={(updates) => setSettings(prev => ({ ...prev, ...updates }))}
+                onSettingsChange={(updates) => updateSettings(updates)}
             />
         </div>
     );
@@ -353,3 +356,53 @@ export { EditorShell };
 // Temporary compatibility export - will be removed in future tasks
 export { EditorShell as FloorPlanEditor };
 export type { EditorShellProps as FloorPlanEditorProps };
+
+// Sidebar inline panel to replace legacy FloorPlanUploader
+function AIImportPanel({ onAnalysisComplete }: { onAnalysisComplete: (analysis: { dimensions?: { width: number; height: number }; zones?: Array<{ zoneId?: string; name: string; x: number; y: number; w: number; h: number }> }) => void }) {
+    const [file, setFile] = useState<File | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleAnalyze = async () => {
+        if (!file) return;
+        setIsAnalyzing(true);
+        setError(null);
+        try {
+            const result = await analyzeFloorPlan({ file });
+            onAnalysisComplete(result);
+        } catch (e) {
+            console.error('AI analysis failed:', e);
+            setError('Analysis failed. Please try another image.');
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-sm font-semibold">AI Import</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <p className="text-xs text-gray-600">Upload a floor plan image. We will detect dimensions and zones.</p>
+                    <div className="space-y-2">
+                        <Label className="text-xs">Image</Label>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setFile(e.target.files?.[0] || null)}
+                            className="block w-full text-xs"
+                        />
+                    </div>
+                    {error && <p className="text-xs text-red-600">{error}</p>}
+                    <div className="flex justify-end">
+                        <Button size="sm" onClick={handleAnalyze} disabled={!file || isAnalyzing}>
+                            {isAnalyzing ? 'Analyzing…' : 'Analyze'}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

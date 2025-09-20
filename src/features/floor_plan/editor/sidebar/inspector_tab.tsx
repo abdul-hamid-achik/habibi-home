@@ -6,16 +6,9 @@ import { ZoneInspector } from './inspectors/zone_inspector';
 import { FurnitureInspector } from './inspectors/furniture_inspector';
 import { DiagramInspector } from './inspectors/diagram_inspector';
 import { Search } from 'lucide-react';
+import { DiagramShape } from '../../canvas/tools/diagram_schemas';
 
 type EditorMode = 'zones' | 'furniture' | 'diagrams';
-
-interface DiagramShape {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  [key: string]: any;
-}
 
 interface InspectorTabProps {
   editorMode: EditorMode;
@@ -37,7 +30,7 @@ interface InspectorTabProps {
   onAssignToZone: (zoneId: string) => void;
   
   // Diagram actions
-  onUpdateDiagramShape: (id: string, updates: any) => void;
+  onUpdateDiagramShape: (id: string, updates: Record<string, unknown>) => void;
   onDeleteDiagramShapes: () => void;
 }
 

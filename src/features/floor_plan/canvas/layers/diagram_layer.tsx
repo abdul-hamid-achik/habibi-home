@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from 'react';
-import { useDiagramSelectionCompat, useSelectionEventHandlers } from '../../hooks/use_unified_selection';
+import { useDiagramSelectionCompat, useSelectionEventHandlers } from '../../hooks/use_selection';
 import { Stage, Layer, Rect, Circle, Line, Text, Transformer } from 'react-konva';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -142,10 +142,14 @@ export function DiagramLayer({
     const shape = shapes.find(s => s.id === shapeId);
     if (shape) {
       if (shape.type === 'rectangle') {
-        updates.width = Math.max(5, (shape.width || 0) * scaleX);
-        updates.height = Math.max(5, (shape.height || 0) * scaleY);
+        Object.assign(updates, {
+          width: Math.max(5, shape.width * scaleX),
+          height: Math.max(5, shape.height * scaleY)
+        });
       } else if (shape.type === 'circle') {
-        updates.radius = Math.max(5, (shape.radius || 0) * Math.max(scaleX, scaleY));
+        Object.assign(updates, {
+          radius: Math.max(5, shape.radius * Math.max(scaleX, scaleY))
+        });
       }
     }
 

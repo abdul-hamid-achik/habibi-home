@@ -7,22 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Trash2, Pencil } from 'lucide-react';
-
-interface DiagramShape {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  fill?: string;
-  stroke?: string;
-  strokeWidth?: number;
-  opacity?: number;
-  [key: string]: any;
-}
+import { DiagramShape } from '../../../canvas/tools/diagram_schemas';
 
 interface DiagramInspectorProps {
   shapes: DiagramShape[];
-  onUpdate: (id: string, updates: any) => void;
+  onUpdate: (id: string, updates: Record<string, unknown>) => void;
   onDelete: () => void;
 }
 
@@ -30,7 +19,7 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
   const isMultiSelection = shapes.length > 1;
   const shape = shapes[0]; // For single selection
   
-  const updateShape = (updates: any) => {
+  const updateShape = (updates: Record<string, unknown>) => {
     if (isMultiSelection) {
       // Apply updates to all selected shapes
       shapes.forEach(s => onUpdate(s.id, updates));
@@ -40,17 +29,17 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
   };
 
   // Get common properties for multi-selection
-  const getCommonProperty = (property: string) => {
+  const getCommonProperty = (property: string): string | number | undefined => {
     if (!shapes.length) return undefined;
-    const firstValue = shapes[0][property];
-    const allSame = shapes.every(s => s[property] === firstValue);
-    return allSame ? firstValue : undefined;
+    const firstValue = (shapes[0] as Record<string, unknown>)[property];
+    const allSame = shapes.every(s => (s as Record<string, unknown>)[property] === firstValue);
+    return allSame ? firstValue as string | number : undefined;
   };
 
-  const commonStroke = getCommonProperty('stroke');
-  const commonFill = getCommonProperty('fill');
-  const commonStrokeWidth = getCommonProperty('strokeWidth');
-  const commonOpacity = getCommonProperty('opacity');
+  const commonStroke = getCommonProperty('stroke') as string | undefined;
+  const commonFill = getCommonProperty('fill') as string | undefined;
+  const commonStrokeWidth = getCommonProperty('strokeWidth') as number | undefined;
+  const commonOpacity = getCommonProperty('opacity') as number | undefined;
 
   return (
     <div className="h-full flex flex-col">
@@ -111,7 +100,7 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
                     <Label className="text-xs text-gray-600">Width</Label>
                     <Input
                       type="number"
-                      value={shape.width || 0}
+                      value={shape.width}
                       onChange={(e) => updateShape({ width: Math.max(1, Number(e.target.value)) })}
                       className="h-7 text-xs"
                       min="1"
@@ -121,7 +110,7 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
                     <Label className="text-xs text-gray-600">Height</Label>
                     <Input
                       type="number"
-                      value={shape.height || 0}
+                      value={shape.height}
                       onChange={(e) => updateShape({ height: Math.max(1, Number(e.target.value)) })}
                       className="h-7 text-xs"
                       min="1"
@@ -134,7 +123,7 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
                   <Label className="text-xs text-gray-600">Radius</Label>
                   <Input
                     type="number"
-                    value={shape.radius || 0}
+                    value={shape.radius}
                     onChange={(e) => updateShape({ radius: Math.max(1, Number(e.target.value)) })}
                     className="h-7 text-xs"
                     min="1"
@@ -149,33 +138,31 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
             <div className="space-y-3">
               <Label className="text-xs font-medium">Text Content</Label>
               <Input
-                value={shape.text || ''}
+                value={shape.text}
                 onChange={(e) => updateShape({ text: e.target.value })}
                 className="h-8 text-sm"
                 placeholder="Enter text..."
               />
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-xs text-gray-600">Font Size</Label>
+                  <Label className="text-xs text-gray-600">Width</Label>
                   <Input
                     type="number"
-                    value={shape.fontSize || 14}
-                    onChange={(e) => updateShape({ fontSize: Math.max(8, Number(e.target.value)) })}
+                    value={shape.width || 100}
+                    onChange={(e) => updateShape({ width: Math.max(10, Number(e.target.value)) })}
                     className="h-7 text-xs"
-                    min="8"
-                    max="72"
+                    min="10"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-gray-600">Font Weight</Label>
-                  <select
-                    value={shape.fontWeight || 'normal'}
-                    onChange={(e) => updateShape({ fontWeight: e.target.value })}
-                    className="h-7 text-xs border rounded px-2 w-full"
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="bold">Bold</option>
-                  </select>
+                  <Label className="text-xs text-gray-600">Height</Label>
+                  <Input
+                    type="number"
+                    value={shape.height || 30}
+                    onChange={(e) => updateShape({ height: Math.max(10, Number(e.target.value)) })}
+                    className="h-7 text-xs"
+                    min="10"
+                  />
                 </div>
               </div>
             </div>
@@ -285,7 +272,7 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
                   <div>Radius: {shape.radius}</div>
                 )}
                 {shape.type === 'text' && (
-                  <div>Text: "{shape.text || 'Empty'}"</div>
+                  <div>Text: &quot;{shape.text || 'Empty'}&quot;</div>
                 )}
               </>
             ) : null}

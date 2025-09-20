@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Stage, Layer, Transformer, Group } from 'react-konva';
+import { Stage, Layer, Transformer, Group, Rect } from 'react-konva';
 import Konva from 'konva';
 import { FloorPlanZone, FurnitureItemType } from '@/types';
 
@@ -282,7 +282,7 @@ export function SelectionOverlay({
         <Layer>
           <Group>
             {/* Selection rectangle */}
-            <Konva.Rect
+            <Rect
               ref={selectionRectRef}
               {...selectionProps}
               draggable={true}
