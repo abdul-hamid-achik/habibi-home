@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Stage, Layer, Rect, Circle, Line, Text, Transformer, Group } from 'react-konva';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -315,17 +315,17 @@ export function KonvaDiagramCanvas({
     };
 
     // Delete selected shape
-    const deleteSelected = () => {
+    const deleteSelected = useCallback(() => {
         if (!selectedShapeId) return;
 
         setShapes(prev => prev.filter(shape => shape.id !== selectedShapeId));
         setSelectedShapeId(null);
         transformerRef.current?.nodes([]);
         onShapeDelete?.(selectedShapeId);
-    };
+    }, [selectedShapeId, onShapeDelete]);
 
     // Duplicate selected shape
-    const duplicateSelected = () => {
+    const duplicateSelected = useCallback(() => {
         if (!selectedShapeId) return;
 
         const selectedShape = shapes.find(s => s.id === selectedShapeId);
@@ -340,7 +340,7 @@ export function KonvaDiagramCanvas({
 
         setShapes(prev => [...prev, newShape]);
         onShapeAdd?.(newShape);
-    };
+    }, [selectedShapeId, shapes, onShapeAdd]);
 
     // Export functions
     const exportToPNG = () => {
@@ -411,7 +411,7 @@ export function KonvaDiagramCanvas({
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [selectedShapeId]);
+    }, [selectedShapeId, deleteSelected, duplicateSelected]);
 
     // Render shape components
     const renderShape = (shape: DiagramShape) => {

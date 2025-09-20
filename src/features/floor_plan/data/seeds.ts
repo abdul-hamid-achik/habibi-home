@@ -1,94 +1,266 @@
-import { z } from "zod";
+/**
+ * Seed data for floor plan editor
+ * Provides default apartment zones and furniture layouts
+ */
 
-// Zod schemas for seed data validation
-export const apartmentZoneSchema = z.object({
-  id: z.string().min(1, "Zone ID is required"),
-  zoneId: z.string().min(1, "Zone identifier is required"),
-  name: z.string().min(1, "Zone name is required"),
-  x: z.number().min(0, "X coordinate must be non-negative"),
-  y: z.number().min(0, "Y coordinate must be non-negative"),
-  w: z.number().min(1, "Width must be positive"),
-  h: z.number().min(1, "Height must be positive"),
-});
-
-export const furnitureLayoutItemSchema = z.object({
-  name: z.string().min(1, "Furniture name is required"),
-  x: z.number().min(0, "X coordinate must be non-negative"),
-  y: z.number().min(0, "Y coordinate must be non-negative"),
-  r: z.number().min(0).max(360, "Rotation must be between 0-360 degrees"),
-  zoneId: z.string().min(1, "Zone ID is required"),
-});
-
-export const apartmentZonesSchema = z.array(apartmentZoneSchema);
-export const furnitureLayoutSchema = z.array(furnitureLayoutItemSchema);
-
-// Type exports
-export type ApartmentZone = z.infer<typeof apartmentZoneSchema>;
-export type FurnitureLayoutItem = z.infer<typeof furnitureLayoutItemSchema>;
-
-// Validation functions
-export function validateApartmentZones(zones: unknown): ApartmentZone[] {
-  const result = apartmentZonesSchema.safeParse(zones);
-  if (!result.success) {
-    throw new Error(`Invalid apartment zones: ${result.error.issues.map(issue => issue.message).join(', ')}`);
-  }
-  return result.data;
+export interface SeedZone {
+  zoneId: string;
+  name: string;
+  x: number;    // cm
+  y: number;    // cm  
+  w: number;    // cm
+  h: number;    // cm
+  color?: string;
 }
 
-export function validateFurnitureLayout(layout: unknown): FurnitureLayoutItem[] {
-  const result = furnitureLayoutSchema.safeParse(layout);
-  if (!result.success) {
-    throw new Error(`Invalid furniture layout: ${result.error.issues.map(issue => issue.message).join(', ')}`);
-  }
-  return result.data;
+export interface SeedFurniture {
+  name: string;
+  x: number;    // cm
+  y: number;    // cm
+  r: number;    // rotation in degrees
+  zoneId: string;
 }
 
-// Default apartment zones for Tipo 7
-export const DEFAULT_APARTMENT_ZONES: ApartmentZone[] = [
-  // Left column
-  { id: "balcony", zoneId: "balcony", name: "balcony", x: 0, y: 720, w: 420, h: 80 },
-  { id: "living", zoneId: "living", name: "living room", x: 0, y: 560, w: 420, h: 160 },
-  { id: "dining", zoneId: "dining", name: "dining room", x: 0, y: 440, w: 420, h: 120 },
-  { id: "kitchen", zoneId: "kitchen", name: "L-shaped kitchen", x: 0, y: 260, w: 420, h: 180 },
-  { id: "entry", zoneId: "entry", name: "ENTRY", x: 0, y: 300, w: 120, h: 70 },
-  { id: "vestibule", zoneId: "vestibule", name: "vestibule / hallway", x: 120, y: 260, w: 300, h: 180 },
-  // Central column
-  { id: "hallway", zoneId: "hallway", name: "hallway / core", x: 420, y: 0, w: 230, h: 800 },
-  { id: "laundry", zoneId: "laundry", name: "laundry", x: 420, y: 140, w: 230, h: 140 },
-  { id: "bathroom1", zoneId: "bathroom1", name: "bathroom 1", x: 420, y: 280, w: 230, h: 160 },
-  { id: "bathroom2", zoneId: "bathroom2", name: "bathroom 2", x: 420, y: 440, w: 230, h: 200 },
-  // Right column
-  { id: "bedroom2", zoneId: "bedroom2", name: "bedroom 2/visits", x: 650, y: 0, w: 400, h: 260 },
-  { id: "study", zoneId: "study", name: "study / TV", x: 650, y: 260, w: 400, h: 240 },
-  { id: "master_bedroom", zoneId: "master_bedroom", name: "master bedroom", x: 650, y: 500, w: 400, h: 300 },
+// Default apartment zones (based on a typical 2-bedroom layout)
+export const DEFAULT_APARTMENT_ZONES: SeedZone[] = [
+  {
+    zoneId: "living_room",
+    name: "Living Room",
+    x: 50,
+    y: 50,
+    w: 400,
+    h: 300,
+    color: "#e3f2fd"
+  },
+  {
+    zoneId: "kitchen",
+    name: "Kitchen", 
+    x: 460,
+    y: 50,
+    w: 250,
+    h: 200,
+    color: "#f3e5f5"
+  },
+  {
+    zoneId: "dining",
+    name: "Dining Area",
+    x: 460,
+    y: 260,
+    w: 250,
+    h: 140,
+    color: "#fff3e0"
+  },
+  {
+    zoneId: "master_bedroom",
+    name: "Master Bedroom",
+    x: 50,
+    y: 360,
+    w: 300,
+    h: 250,
+    color: "#e8f5e8"
+  },
+  {
+    zoneId: "bedroom2",
+    name: "Bedroom 2", 
+    x: 360,
+    y: 410,
+    w: 250,
+    h: 200,
+    color: "#fce4ec"
+  },
+  {
+    zoneId: "bathroom1",
+    name: "Main Bathroom",
+    x: 720,
+    y: 50,
+    w: 150,
+    h: 180,
+    color: "#e0f2f1"
+  },
+  {
+    zoneId: "bathroom2", 
+    name: "En-suite",
+    x: 720,
+    y: 240,
+    w: 120,
+    h: 160,
+    color: "#e0f2f1"
+  },
+  {
+    zoneId: "hallway",
+    name: "Hallway",
+    x: 620,
+    y: 410,
+    w: 80,
+    h: 200,
+    color: "#f5f5f5"
+  },
+  {
+    zoneId: "balcony",
+    name: "Balcony",
+    x: 710,
+    y: 410,
+    w: 160,
+    h: 120,
+    color: "#e1f5fe"
+  },
+  {
+    zoneId: "study",
+    name: "Study/Office",
+    x: 720,
+    y: 540,
+    w: 150,
+    h: 100,
+    color: "#fff8e1"
+  }
 ];
 
-export const DEFAULT_FURNITURE_LAYOUT: FurnitureLayoutItem[] = [
-  // Living room (upper left column)
-  { name: "large sofa", x: 30, y: 585, r: 0, zoneId: "living" },
-  { name: "medium sofa", x: 245, y: 545, r: 90, zoneId: "living" },
-  { name: "sideboard", x: 260, y: 705, r: 0, zoneId: "balcony" },
-  { name: "coffee table", x: 150, y: 600, r: 0, zoneId: "living" },
-  // Dining room
-  { name: "dining table 121×245", x: 80, y: 450, r: 0, zoneId: "dining" },
-  // TV room (middle right column)
-  { name: "blue sofa", x: 680, y: 300, r: 0, zoneId: "study" },
-  { name: "small sofa", x: 680, y: 410, r: 0, zoneId: "study" },
-  { name: "55\" TV", x: 750, y: 270, r: 0, zoneId: "study" },
-  // Master bedroom (lower right)
-  { name: "queen bed", x: 700, y: 540, r: 0, zoneId: "master_bedroom" },
-  { name: "dresser", x: 938, y: 555, r: 0, zoneId: "master_bedroom" },
-  { name: "nightstand", x: 650, y: 580, r: 0, zoneId: "master_bedroom" },
-  { name: "nightstand", x: 913, y: 580, r: 0, zoneId: "master_bedroom" },
+// Default furniture layout matching the zones
+export const DEFAULT_FURNITURE_LAYOUT: SeedFurniture[] = [
+  // Living Room
+  {
+    name: "large sofa",
+    x: 100,
+    y: 100,
+    r: 0,
+    zoneId: "living_room"
+  },
+  {
+    name: "coffee table",
+    x: 180,
+    y: 180, 
+    r: 0,
+    zoneId: "living_room"
+  },
+  {
+    name: "armchair",
+    x: 350,
+    y: 120,
+    r: 270,
+    zoneId: "living_room"
+  },
+  {
+    name: "tv stand",
+    x: 80,
+    y: 300,
+    r: 0,
+    zoneId: "living_room"
+  },
+
+  // Kitchen
+  {
+    name: "refrigerator",
+    x: 480,
+    y: 70,
+    r: 0,
+    zoneId: "kitchen"
+  },
+  {
+    name: "kitchen island",
+    x: 550,
+    y: 140,
+    r: 0,
+    zoneId: "kitchen"
+  },
+
+  // Dining
+  {
+    name: "dining table",
+    x: 520,
+    y: 300,
+    r: 0,
+    zoneId: "dining"
+  },
+  {
+    name: "dining chair",
+    x: 490,
+    y: 320,
+    r: 0,
+    zoneId: "dining"
+  },
+  {
+    name: "dining chair", 
+    x: 550,
+    y: 320,
+    r: 0,
+    zoneId: "dining"
+  },
+
+  // Master Bedroom
+  {
+    name: "queen bed",
+    x: 120,
+    y: 420,
+    r: 0,
+    zoneId: "master_bedroom"
+  },
+  {
+    name: "nightstand",
+    x: 80,
+    y: 450,
+    r: 0,
+    zoneId: "master_bedroom"
+  },
+  {
+    name: "dresser",
+    x: 280,
+    y: 380,
+    r: 90,
+    zoneId: "master_bedroom"
+  },
+
   // Bedroom 2
-  { name: "single bed", x: 700, y: 50, r: 0, zoneId: "bedroom2" },
-  { name: "desk", x: 850, y: 150, r: 0, zoneId: "bedroom2" },
-];
+  {
+    name: "twin bed",
+    x: 400,
+    y: 450,
+    r: 0,
+    zoneId: "bedroom2"
+  },
+  {
+    name: "desk",
+    x: 550,
+    y: 430,
+    r: 90,
+    zoneId: "bedroom2"
+  },
+  {
+    name: "office chair",
+    x: 520,
+    y: 460,
+    r: 90,
+    zoneId: "bedroom2"
+  },
 
-// Validate seed data on module load
-try {
-  validateApartmentZones(DEFAULT_APARTMENT_ZONES);
-  validateFurnitureLayout(DEFAULT_FURNITURE_LAYOUT);
-} catch (error) {
-  console.error('Seed data validation failed:', error);
-}
+  // Study
+  {
+    name: "desk",
+    x: 750,
+    y: 560,
+    r: 0,
+    zoneId: "study"
+  },
+  {
+    name: "office chair",
+    x: 780,
+    y: 590,
+    r: 180,
+    zoneId: "study"
+  },
+
+  // Balcony
+  {
+    name: "outdoor chair",
+    x: 750,
+    y: 450,
+    r: 0,
+    zoneId: "balcony"
+  },
+  {
+    name: "small table",
+    x: 800,
+    y: 470,
+    r: 0,
+    zoneId: "balcony"
+  }
+];

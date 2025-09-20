@@ -152,45 +152,6 @@ const FloorPlanAnalysisSchema = z.object({
   scale: z.number(),
 });
 
-// Try grid-based detection approach
-const createGridAnalysisPrompt = (totalArea?: number) => `
-IMPORTANT: You are analyzing a SPECIFIC floor plan image with a grid overlay. Your task is to identify the EXACT room boundaries.
-
-THE IMAGE SHOWS:
-- A floor plan with grid lines
-- Black walls dividing the space into rooms
-- Each room occupies specific grid cells
-
-YOUR TASK:
-1. Look at the grid in the image
-2. Identify each room by the grid cells it occupies
-3. Return coordinates that match the EXACT grid positions
-
-For example, if you see:
-- A room in the top-left occupying 4x4 grid cells, return appropriate x,y,w,h
-- A narrow hallway along the center, return its exact position
-- DO NOT return generic placements
-
-${totalArea ? `Total area: ${totalArea} m²` : ''}
-
-Return ONLY valid JSON with zones matching the EXACT room positions in the grid:
-{
-  "totalArea": ${totalArea || 85.5},
-  "dimensions": {"width": 12.5, "height": 8.0},
-  "zones": [
-    {
-      "name": "Room Name based on what you see",
-      "zoneId": "unique_id", 
-      "x": 10,
-      "y": 10,
-      "w": 30,
-      "h": 30,
-      "type": "living|bedroom|kitchen|bathroom|hallway|dining|entrance",
-      "suggestedFurniture": ["appropriate furniture"]
-    }
-  ],
-  "scale": 50
-}`;
 
 // Create a two-phase analysis approach
 const createDescriptivePrompt = () => `

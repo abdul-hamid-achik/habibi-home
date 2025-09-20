@@ -3,6 +3,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -225,10 +226,11 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
               {/* Image Preview */}
               {previewUrl && (
                 <div className="relative w-full h-64 bg-white rounded-lg overflow-hidden border">
-                  <img
+                  <Image
                     src={previewUrl}
                     alt="Floor plan preview"
-                    className="w-full h-full object-contain"
+                    fill
+                    className="object-contain"
                   />
                   <button
                     onClick={() => {

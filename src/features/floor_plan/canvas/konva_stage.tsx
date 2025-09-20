@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Stage } from 'react-konva';
 import Konva from 'konva';
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from '@/types';
 import { GridLayer } from './layers/grid_layer';
