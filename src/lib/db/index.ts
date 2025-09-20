@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/neon-http';
 import ws from 'ws';
 import * as schema from "./schema";
 
-let connectionString = process.env.NODE_ENV === 'production'
+const connectionString = process.env.NODE_ENV === 'production'
     ? process.env.DATABASE_URL!
     : 'postgres://neon:npg@localhost:5432/neondb';
 
