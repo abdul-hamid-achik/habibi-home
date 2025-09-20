@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { importedFloorPlans } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { stackServerApp } from '@/stack';
+import { stackServerApp } from '@/app/stack';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,

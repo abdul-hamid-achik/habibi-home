@@ -1,7 +1,7 @@
 'use client';
 
 import { StackProvider, StackTheme } from "@stackframe/stack";
-import { stackServerApp } from "../stack";
+import { stackServerApp } from "@/app/stack";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";

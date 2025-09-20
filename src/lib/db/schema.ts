@@ -2,51 +2,14 @@ import { pgTable, text, integer, jsonb, timestamp, boolean, uuid, decimal, seria
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table (for NextAuth)
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  name: text("name"),
-  email: text("email").notNull(),
-  emailVerified: timestamp("emailVerified", { mode: "date" }),
-  image: text("image"),
-});
-
-export const accounts = pgTable("accounts", {
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(),
-  provider: text("provider").notNull(),
-  providerAccountId: text("providerAccountId").notNull(),
-  refresh_token: text("refresh_token"),
-  access_token: text("access_token"),
-  expires_at: integer("expires_at"),
-  token_type: text("token_type"),
-  scope: text("scope"),
-  id_token: text("id_token"),
-  session_state: text("session_state"),
-});
-
-export const sessions = pgTable("sessions", {
-  sessionToken: text("sessionToken").primaryKey(),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  expires: timestamp("expires", { mode: "date" }).notNull(),
-});
-
-export const verificationTokens = pgTable("verificationTokens", {
-  identifier: text("identifier").notNull(),
-  token: text("token").notNull(),
-  expires: timestamp("expires", { mode: "date" }).notNull(),
-});
+// Neon Auth handles user management automatically
+// Users are stored in the neon_auth.users_sync table
+// No need for manual user table creation
 
 // Projects table
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(), // References Neon Auth user ID
   name: text("name").notNull(),
   description: text("description"),
   apartmentType: text("apartment_type").notNull().default("type_7"),
@@ -125,8 +88,7 @@ export const importedFloorPlans = pgTable("imported_floor_plans", {
   id: serial("id").primaryKey(),
   shortId: text("short_id").notNull().unique(), // 8-character short ID for URLs
   slug: text("slug").notNull().unique(), // SEO-friendly slug
-  userId: text("user_id")
-    .references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id"), // References Neon Auth user ID
 
   // Original image data
   originalImageUrl: text("original_image_url"),
@@ -148,8 +110,7 @@ export const importedFloorPlans = pgTable("imported_floor_plans", {
 });
 
 // Zod schemas for validation
-export const insertUserSchema = createInsertSchema(users);
-export const selectUserSchema = createSelectSchema(users);
+// User schemas are not needed as Neon Auth handles user management
 
 export const insertProjectSchema = createInsertSchema(projects);
 export const selectProjectSchema = createSelectSchema(projects);
@@ -169,11 +130,94 @@ export const selectProjectSettingsSchema = createSelectSchema(projectSettings);
 export const insertImportedFloorPlanSchema = createInsertSchema(importedFloorPlans);
 export const selectImportedFloorPlanSchema = createSelectSchema(importedFloorPlans);
 
+// Manual schemas for type inference
+export const ProjectSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  apartmentType: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  isPublic: z.boolean().nullable(),
+});
+
+export const ZoneSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  zoneId: z.string(),
+  name: z.string(),
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+  color: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const FurnitureCatalogItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  category: z.string(),
+  width: z.number(),
+  height: z.number(),
+  depth: z.number().nullable(),
+  color: z.string(),
+  isDefault: z.boolean(),
+  createdAt: z.date(),
+});
+
+export const FurnitureItemSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  catalogId: z.string().uuid().nullable(),
+  name: z.string(),
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+  rotation: z.number(),
+  color: z.string(),
+  zoneId: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export const ProjectSettingsSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  apartmentWidth: z.number(),
+  apartmentHeight: z.number(),
+  scale: z.number(),
+  snapGrid: z.number(),
+  showGrid: z.boolean(),
+  showDimensions: z.boolean(),
+  updatedAt: z.date(),
+});
+
+export const ImportedFloorPlanSchema = z.object({
+  id: z.number(),
+  shortId: z.string(),
+  slug: z.string(),
+  userId: z.string().nullable(),
+  originalImageUrl: z.string().nullable(),
+  originalImageWidth: z.number().nullable(),
+  originalImageHeight: z.number().nullable(),
+  analysisData: z.any(),
+  dimensions: z.any(),
+  zones: z.any(),
+  projectId: z.string().uuid().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  isProcessed: z.boolean(),
+});
+
 // Types
-export type User = z.infer<typeof selectUserSchema>;
-export type Project = z.infer<typeof selectProjectSchema>;
-export type Zone = z.infer<typeof selectZoneSchema>;
-export type FurnitureCatalogItem = z.infer<typeof selectFurnitureCatalogSchema>;
-export type FurnitureItem = z.infer<typeof selectFurnitureItemSchema>;
-export type ProjectSettings = z.infer<typeof selectProjectSettingsSchema>;
-export type ImportedFloorPlan = z.infer<typeof selectImportedFloorPlanSchema>;
+// User type is not needed as Neon Auth handles user management
+export type Project = z.infer<typeof ProjectSchema>;
+export type Zone = z.infer<typeof ZoneSchema>;
+export type FurnitureCatalogItem = z.infer<typeof FurnitureCatalogItemSchema>;
+export type FurnitureItem = z.infer<typeof FurnitureItemSchema>;
+export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
+export type ImportedFloorPlan = z.infer<typeof ImportedFloorPlanSchema>;
