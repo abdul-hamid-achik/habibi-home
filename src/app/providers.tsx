@@ -1,7 +1,14 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
+import { StackProvider, StackTheme } from "@stackframe/stack";
+import { stackServerApp } from "@/lib/stack-auth";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+  return (
+    <StackProvider app={stackServerApp}>
+      <StackTheme>
+        {children}
+      </StackTheme>
+    </StackProvider>
+  );
 }

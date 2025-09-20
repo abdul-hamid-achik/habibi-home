@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Settings,
   RotateCcw,
@@ -27,75 +26,12 @@ import {
   X,
   Keyboard
 } from "lucide-react";
-import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from "@/types";
+import { FloorPlanZone, FurnitureItemType, FloorPlanSettings, saveProjectDataSchema, zoneSchema, furnitureItemSchema } from "@/types";
 import { DEFAULT_APARTMENT_ZONES, DEFAULT_FURNITURE_LAYOUT, DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
 import { FloorPlanUploader } from "./floor-plan-uploader";
 import { FloatingSettingsPanel } from "./floating-settings-panel";
 
 // Canvas container component for different display modes
-interface CanvasContainerProps {
-  settings: FloorPlanSettings;
-  cm2px: (cm: number) => number;
-  children: React.ReactNode;
-}
-
-function CanvasContainer({ settings, cm2px, children }: CanvasContainerProps) {
-  const canvasWidth = cm2px(settings.apartmentWidth);
-  const canvasHeight = cm2px(settings.apartmentHeight);
-
-  if (settings.canvasMode === 'fit-to-screen') {
-    return (
-      <div className="w-full h-full flex items-center justify-center overflow-visible">
-        <div
-          className="relative border bg-white shadow-lg"
-          style={{
-            width: canvasWidth,
-            height: canvasHeight,
-            minWidth: canvasWidth,
-            minHeight: canvasHeight,
-          }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  }
-
-  if (settings.canvasMode === 'centered') {
-    return (
-      <div className="w-full h-full flex items-center justify-center overflow-visible">
-        <div
-          className="relative border bg-white shadow-lg"
-          style={{
-            width: canvasWidth,
-            height: canvasHeight,
-            minWidth: canvasWidth,
-            minHeight: canvasHeight,
-          }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  }
-
-  // Default 'fixed' mode
-  return (
-    <div className="w-full h-full flex overflow-visible">
-      <div
-        className="relative border bg-white shadow-lg"
-        style={{
-          width: canvasWidth,
-          height: canvasHeight,
-          minWidth: canvasWidth,
-          minHeight: canvasHeight,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
 
 interface FloorPlanEditorProps {
   projectId?: string;
@@ -115,6 +51,8 @@ const DEFAULT_SETTINGS: FloorPlanSettings = {
   apartmentWidth: 1050,
   apartmentHeight: 800,
   canvasMode: 'centered',
+  maxCanvasWidth: 1200,
+  maxCanvasHeight: 800,
 };
 
 export function FloorPlanEditor({
@@ -174,7 +112,6 @@ export function FloorPlanEditor({
 
   // Refs for Moveable
   const zoneRefs = useRef<Record<string, HTMLElement | null>>({});
-  const furnitureRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // Computed values
   const selectedZone = useMemo(() =>
@@ -262,6 +199,12 @@ export function FloorPlanEditor({
     }));
     setSelectedZoneId(null);
     setSelectedFurnitureId(null);
+
+    // Reset to centered mode with default dimensions
+    setSettings(prev => ({
+      ...DEFAULT_SETTINGS,
+      ...prev,
+    }));
   };
 
   const handleAIAnalysis = (analysis: { dimensions?: { width: number; height: number }; zones?: Array<{ zoneId?: string; name: string; x: number; y: number; w: number; h: number }> }) => {
@@ -273,6 +216,8 @@ export function FloorPlanEditor({
         ...prev,
         apartmentWidth: Math.round(dimensions.width * 100), // Convert meters to cm
         apartmentHeight: Math.round(dimensions.height * 100),
+        canvasMode: 'fit-to-screen', // Switch to fit-to-screen after import
+        scale: 0.8, // Reset scale to better fit imported floor plans
       }));
     }
 
@@ -317,7 +262,7 @@ export function FloorPlanEditor({
     setFurniture(prev => [...prev, newItem]);
   };
 
-  const duplicateFurniture = () => {
+  const duplicateFurniture = useCallback(() => {
     if (!selectedFurniture) return;
 
     const newItem: FurnitureItemType = {
@@ -328,7 +273,8 @@ export function FloorPlanEditor({
     };
 
     setFurniture(prev => [...prev, newItem]);
-  };
+    setSelectedFurnitureId(newItem.id);
+  }, [selectedFurniture]);
 
   const deleteFurniture = () => {
     if (!selectedFurniture) return;
@@ -349,22 +295,66 @@ export function FloorPlanEditor({
 
   const handleSave = () => {
     if (onSave) {
-      onSave({ zones, furniture, settings });
+      // Validate data before saving
+      const validationResult = saveProjectDataSchema.safeParse({
+        zones,
+        furniture,
+        settings: {
+          apartmentWidth: settings.apartmentWidth,
+          apartmentHeight: settings.apartmentHeight,
+          scale: settings.scale,
+          snapGrid: settings.snap,
+          showGrid: settings.showGrid,
+          showDimensions: settings.showDimensions,
+        }
+      });
+
+      if (!validationResult.success) {
+        console.error('Invalid project data:', validationResult.error);
+        // For now, we'll still call onSave but log the error
+        // In production, you might want to show a user-friendly error
+        console.warn('Saving project with invalid data');
+      }
+
+      const validatedData = validationResult.success ? validationResult.data : { zones, furniture, settings };
+      onSave(validatedData as { zones: FloorPlanZone[]; furniture: FurnitureItemType[]; settings: FloorPlanSettings });
     }
   };
 
   // Update furniture helper
   const updateFurniture = (id: string, updates: Partial<FurnitureItemType>) => {
-    setFurniture(prev =>
-      prev.map(f => f.id === id ? { ...f, ...updates } : f)
-    );
+    setFurniture(prev => {
+      const updatedFurniture = prev.map(f => f.id === id ? { ...f, ...updates } : f);
+
+      // Validate the updated furniture item
+      const updatedItem = updatedFurniture.find(f => f.id === id);
+      if (updatedItem) {
+        const validationResult = furnitureItemSchema.safeParse(updatedItem);
+        if (!validationResult.success) {
+          console.warn(`Invalid furniture data for item ${id}:`, validationResult.error);
+        }
+      }
+
+      return updatedFurniture;
+    });
   };
 
   // Update zone helper
   const updateZone = (id: string, updates: Partial<FloorPlanZone>) => {
-    setZones(prev =>
-      prev.map(z => z.id === id ? { ...z, ...updates } : z)
-    );
+    setZones(prev => {
+      const updatedZones = prev.map(z => z.id === id ? { ...z, ...updates } : z);
+
+      // Validate the updated zone
+      const updatedZone = updatedZones.find(z => z.id === id);
+      if (updatedZone) {
+        const validationResult = zoneSchema.safeParse(updatedZone);
+        if (!validationResult.success) {
+          console.warn(`Invalid zone data for zone ${id}:`, validationResult.error);
+        }
+      }
+
+      return updatedZones;
+    });
   };
 
   // Keyboard shortcuts for zones and furniture
@@ -488,7 +478,7 @@ export function FloorPlanEditor({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [editZones, selectedZoneId, selectedFurnitureId, zones, furniture]);
+  }, [editZones, selectedZoneId, selectedFurnitureId, zones, furniture, duplicateFurniture]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -961,12 +951,12 @@ export function FloorPlanEditor({
 
         {/* Canvas */}
         <div className="flex-1 bg-gray-100 p-4 overflow-auto">
-          <div className="w-full h-full flex items-start justify-start">
+          <div className="w-full h-full flex items-center justify-center">
             <div
               className="relative border bg-white shadow-lg"
               style={{
-                width: cm2px(settings.apartmentWidth),
-                height: cm2px(settings.apartmentHeight),
+                width: cm2px(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity)),
+                height: cm2px(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity)),
                 position: 'relative'
               }}
             >
@@ -974,8 +964,8 @@ export function FloorPlanEditor({
               {settings.showGrid && (
                 <svg
                   className="absolute inset-0 pointer-events-none"
-                  width={cm2px(settings.apartmentWidth)}
-                  height={cm2px(settings.apartmentHeight)}
+                  width={cm2px(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity))}
+                  height={cm2px(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity))}
                 >
                   <defs>
                     <pattern
@@ -1039,10 +1029,10 @@ export function FloorPlanEditor({
                   bounds="parent"
                   enableResizing={selectedFurnitureId === item.id}
                   disableDragging={false}
-                  onDragStart={(e, d) => {
+                  onDragStart={() => {
                     setSelectedFurnitureId(item.id);
                   }}
-                  onDragStop={(e, d) => {
+                  onDragStop={(_e, d) => {
                     const newX = snapCm(px2cm(d.x));
                     const newY = snapCm(px2cm(d.y));
                     updateFurniture(item.id, { x: newX, y: newY });
@@ -1184,7 +1174,7 @@ export function FloorPlanEditor({
                 <h4 className="font-medium text-sm text-gray-700 mb-2">General</h4>
                 <div className="space-y-2 text-sm">
                   <div className="text-xs text-gray-600">
-                    Click the "Shortcuts" button in the header to view all shortcuts
+                    Click the &quot;Shortcuts&quot; button in the header to view all shortcuts
                   </div>
                 </div>
               </div>

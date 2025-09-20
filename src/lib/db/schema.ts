@@ -1,4 +1,4 @@
-import { pgTable, text, integer, jsonb, timestamp, boolean, uuid, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, jsonb, timestamp, boolean, uuid, decimal, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -120,6 +120,33 @@ export const projectSettings = pgTable("project_settings", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// Imported floor plans (from AI analysis)
+export const importedFloorPlans = pgTable("imported_floor_plans", {
+  id: serial("id").primaryKey(),
+  shortId: text("short_id").notNull().unique(), // 8-character short ID for URLs
+  slug: text("slug").notNull().unique(), // SEO-friendly slug
+  userId: text("user_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  // Original image data
+  originalImageUrl: text("original_image_url"),
+  originalImageWidth: integer("original_image_width"),
+  originalImageHeight: integer("original_image_height"),
+
+  // AI analysis results
+  analysisData: jsonb("analysis_data").notNull(), // Store the full AI response
+  dimensions: jsonb("dimensions").notNull(), // {width: number, height: number}
+  zones: jsonb("zones").notNull(), // Array of zone objects
+
+  // Project data created from import
+  projectId: uuid("project_id").references(() => projects.id),
+
+  // Metadata
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  isProcessed: boolean("is_processed").default(false), // Whether project was created
+});
+
 // Zod schemas for validation
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -139,6 +166,9 @@ export const selectFurnitureItemSchema = createSelectSchema(furnitureItems);
 export const insertProjectSettingsSchema = createInsertSchema(projectSettings);
 export const selectProjectSettingsSchema = createSelectSchema(projectSettings);
 
+export const insertImportedFloorPlanSchema = createInsertSchema(importedFloorPlans);
+export const selectImportedFloorPlanSchema = createSelectSchema(importedFloorPlans);
+
 // Types
 export type User = z.infer<typeof selectUserSchema>;
 export type Project = z.infer<typeof selectProjectSchema>;
@@ -146,3 +176,4 @@ export type Zone = z.infer<typeof selectZoneSchema>;
 export type FurnitureCatalogItem = z.infer<typeof selectFurnitureCatalogSchema>;
 export type FurnitureItem = z.infer<typeof selectFurnitureItemSchema>;
 export type ProjectSettings = z.infer<typeof selectProjectSettingsSchema>;
+export type ImportedFloorPlan = z.infer<typeof selectImportedFloorPlanSchema>;

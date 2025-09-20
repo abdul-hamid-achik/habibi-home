@@ -1,4 +1,7 @@
+import { z } from 'zod';
+
 export interface FurnitureSpec {
+  id: string;
   name: string;
   category: string;
   width: number; // cm
@@ -7,48 +10,80 @@ export interface FurnitureSpec {
   color: string;
 }
 
+// Zod schemas for validation
+export const furnitureSpecSchema = z.object({
+  id: z.string().min(1, 'ID is required'),
+  name: z.string().min(1, 'Name is required'),
+  category: z.string().min(1, 'Category is required'),
+  width: z.number().positive('Width must be positive'),
+  height: z.number().positive('Height must be positive'),
+  depth: z.number().positive('Depth must be positive').optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color must be a valid hex color'),
+});
+
+export const furnitureCatalogSchema = z.array(furnitureSpecSchema);
+
+export type FurnitureSpecInput = z.input<typeof furnitureSpecSchema>;
+export type FurnitureSpecOutput = z.output<typeof furnitureSpecSchema>;
+
+// Validation function
+export function validateFurnitureCatalog(catalog: unknown): FurnitureSpec[] {
+  const result = furnitureCatalogSchema.safeParse(catalog);
+  if (!result.success) {
+    throw new Error(`Invalid furniture catalog: ${result.error.issues.map(issue => issue.message).join(', ')}`);
+  }
+  return result.data;
+}
+
 export const DEFAULT_FURNITURE_CATALOG: FurnitureSpec[] = [
   // Sofas / Seating
-  { name: "large sofa", category: "sofa", width: 205, height: 100, color: "#2b5db9" },
-  { name: "small sofa", category: "sofa", width: 107, height: 100, color: "#2b9b6b" },
-  { name: "medium sofa", category: "sofa", width: 160, height: 100, color: "#6a8bd7" },
-  { name: "blue sofa", category: "sofa", width: 201, height: 100, color: "#1f6f52" },
-  { name: "armchair", category: "chair", width: 80, height: 85, color: "#7c5f3e" },
-  { name: "ottoman", category: "chair", width: 50, height: 40, color: "#a67c5a" },
+  { id: "large-sofa", name: "large sofa", category: "sofa", width: 205, height: 100, color: "#2b5db9" },
+  { id: "small-sofa", name: "small sofa", category: "sofa", width: 107, height: 100, color: "#2b9b6b" },
+  { id: "medium-sofa", name: "medium sofa", category: "sofa", width: 160, height: 100, color: "#6a8bd7" },
+  { id: "blue-sofa", name: "blue sofa", category: "sofa", width: 201, height: 100, color: "#1f6f52" },
+  { id: "armchair", name: "armchair", category: "chair", width: 80, height: 85, color: "#7c5f3e" },
+  { id: "ottoman", name: "ottoman", category: "chair", width: 50, height: 40, color: "#a67c5a" },
 
   // Tables
-  { name: "dining table 121×245", category: "table", width: 121, height: 245, color: "#b98a2b" },
-  { name: "coffee table", category: "table", width: 120, height: 60, color: "#8b6914" },
-  { name: "side table", category: "table", width: 50, height: 50, color: "#9d7b1f" },
-  { name: "desk", category: "desk", width: 140, height: 70, color: "#654321" },
-  { name: "nightstand", category: "table", width: 50, height: 40, color: "#8b4513" },
+  { id: "dining-table-121x245", name: "dining table 121×245", category: "table", width: 121, height: 245, color: "#b98a2b" },
+  { id: "coffee-table", name: "coffee table", category: "table", width: 120, height: 60, color: "#8b6914" },
+  { id: "side-table", name: "side table", category: "table", width: 50, height: 50, color: "#9d7b1f" },
+  { id: "desk", name: "desk", category: "desk", width: 140, height: 70, color: "#654321" },
+  { id: "nightstand", name: "nightstand", category: "table", width: 50, height: 40, color: "#8b4513" },
 
   // Beds
-  { name: "queen bed", category: "bed", width: 213, height: 158, color: "#b92b2b" },
-  { name: "king bed", category: "bed", width: 193, height: 203, color: "#a02020" },
-  { name: "single bed", category: "bed", width: 90, height: 190, color: "#c53030" },
-  { name: "double bed", category: "bed", width: 140, height: 190, color: "#9f1239" },
+  { id: "queen-bed", name: "queen bed", category: "bed", width: 213, height: 158, color: "#b92b2b" },
+  { id: "king-bed", name: "king bed", category: "bed", width: 193, height: 203, color: "#a02020" },
+  { id: "single-bed", name: "single bed", category: "bed", width: 90, height: 190, color: "#c53030" },
+  { id: "double-bed", name: "double bed", category: "bed", width: 140, height: 190, color: "#9f1239" },
 
   // Storage
-  { name: "sideboard", category: "storage", width: 121, height: 41, color: "#7c7c7c" },
-  { name: "dresser", category: "storage", width: 112, height: 45, color: "#5a5a5a" },
-  { name: "wardrobe", category: "storage", width: 150, height: 60, color: "#4a4a4a" },
-  { name: "bookshelf", category: "storage", width: 80, height: 30, color: "#696969" },
-  { name: "chest of drawers", category: "storage", width: 100, height: 50, color: "#555555" },
+  { id: "sideboard", name: "sideboard", category: "storage", width: 121, height: 41, color: "#7c7c7c" },
+  { id: "dresser", name: "dresser", category: "storage", width: 112, height: 45, color: "#5a5a5a" },
+  { id: "wardrobe", name: "wardrobe", category: "storage", width: 150, height: 60, color: "#4a4a4a" },
+  { id: "bookshelf", name: "bookshelf", category: "storage", width: 80, height: 30, color: "#696969" },
+  { id: "chest-of-drawers", name: "chest of drawers", category: "storage", width: 100, height: 50, color: "#555555" },
 
   // Appliances
-  { name: "refrigerator", category: "appliance", width: 60, height: 70, color: "#e6e6e6" },
-  { name: "stove", category: "appliance", width: 60, height: 60, color: "#d4d4d4" },
-  { name: "washing machine", category: "appliance", width: 60, height: 60, color: "#b8b8b8" },
-  { name: "dishwasher", category: "appliance", width: 60, height: 60, color: "#c0c0c0" },
-  { name: "55\" TV", category: "electronics", width: 123, height: 7, color: "#1a1a1a" },
+  { id: "refrigerator", name: "refrigerator", category: "appliance", width: 60, height: 70, color: "#e6e6e6" },
+  { id: "stove", name: "stove", category: "appliance", width: 60, height: 60, color: "#d4d4d4" },
+  { id: "washing-machine", name: "washing machine", category: "appliance", width: 60, height: 60, color: "#b8b8b8" },
+  { id: "dishwasher", name: "dishwasher", category: "appliance", width: 60, height: 60, color: "#c0c0c0" },
+  { id: "55-inch-tv", name: "55\" TV", category: "electronics", width: 123, height: 7, color: "#1a1a1a" },
 
   // Decor
-  { name: "large plant", category: "decor", width: 40, height: 40, color: "#228b22" },
-  { name: "small plant", category: "decor", width: 25, height: 25, color: "#32cd32" },
-  { name: "large rug", category: "decor", width: 200, height: 150, color: "#deb887" },
-  { name: "small rug", category: "decor", width: 120, height: 80, color: "#d2b48c" },
+  { id: "large-plant", name: "large plant", category: "decor", width: 40, height: 40, color: "#228b22" },
+  { id: "small-plant", name: "small plant", category: "decor", width: 25, height: 25, color: "#32cd32" },
+  { id: "large-rug", name: "large rug", category: "decor", width: 200, height: 150, color: "#deb887" },
+  { id: "small-rug", name: "small rug", category: "decor", width: 120, height: 80, color: "#d2b48c" },
 ];
+
+// Validate the default catalog on module load
+try {
+  validateFurnitureCatalog(DEFAULT_FURNITURE_CATALOG);
+} catch (error) {
+  console.error('Default furniture catalog validation failed:', error);
+}
 
 export const FURNITURE_CATEGORIES = [
   { id: "sofa", name: "Sofas", icon: "🛋️" },

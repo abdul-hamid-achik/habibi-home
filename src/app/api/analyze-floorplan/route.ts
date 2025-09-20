@@ -2,10 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import OpenAI from 'openai';
 import { z } from 'zod';
+import { db } from '@/lib/db';
+import { importedFloorPlans } from '@/lib/db/schema';
+import { stackServerApp } from '@/lib/stack-auth';
+import { eq } from 'drizzle-orm';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
+
+// Helper function to generate unique short ID
+function generateShortId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// Helper function to generate SEO-friendly slug
+function generateSlug(baseName: string): string {
+  return baseName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .substring(0, 50);
+}
+
+// Helper function to ensure unique slug
+async function generateUniqueSlug(baseName: string): Promise<string> {
+  let slug = generateSlug(baseName);
+  let counter = 1;
+
+  while (true) {
+    // Check if slug exists
+    const existing = await db
+      .select()
+      .from(importedFloorPlans)
+      .where(eq(importedFloorPlans.slug, slug))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return slug;
+    }
+
+    // If slug exists, add counter
+    slug = generateSlug(`${baseName}-${counter}`);
+    counter++;
+  }
+}
 
 interface Zone {
   name: string;
@@ -275,12 +321,47 @@ export async function POST(request: NextRequest) {
       h: Math.round((zone.height / 100) * EDITOR_HEIGHT),
     }));
 
+    // Generate unique identifiers
+    const shortId = generateShortId();
+    const slug = await generateUniqueSlug(`floor-plan-${Date.now()}`);
+
+    // Get user session (optional for now)
+    let userId: string | null = null;
+    try {
+      const user = await stackServerApp.getUser();
+      userId = user?.id || null;
+    } catch (error) {
+      // Auth is optional for now, continue without user
+      console.log('Auth check failed, continuing without user:', error);
+    }
+
+    // Save to database
+    const [savedFloorPlan] = await db
+      .insert(importedFloorPlans)
+      .values({
+        shortId,
+        slug,
+        userId,
+        originalImageUrl: blob.url,
+        originalImageWidth: null, // TODO: Extract from image if needed
+        originalImageHeight: null,
+        analysisData: analysis,
+        dimensions: analysis.dimensions,
+        zones: convertedZones,
+        isProcessed: false,
+      })
+      .returning();
+
     const result = {
       ...analysis,
       zones: convertedZones,
       imageUrl: blob.url,
       imageSize: file.size,
       processedAt: new Date().toISOString(),
+      // New fields for URL routing
+      id: savedFloorPlan.id,
+      shortId: savedFloorPlan.shortId,
+      slug: savedFloorPlan.slug,
     };
 
     return NextResponse.json(result);

@@ -26,8 +26,10 @@
     "env": {
         "NODE_ENV": "development",
         "DATABASE_URL": "postgresql://username:password@host:port/database?sslmode=require",
-        "NEXTAUTH_URL": "http://localhost:3000",
-        "NEXTAUTH_SECRET": "development-secret-key",
-        "NEON_API_KEY": "your-neon-api-key-here"
+        "NEXT_PUBLIC_STACK_PROJECT_ID": "your-stack-project-id",
+        "NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY": "your-stack-publishable-key",
+        "STACK_SECRET_SERVER_KEY": "your-stack-secret-key",
+        "NEON_API_KEY": "your-neon-api-key-here",
+        "NEON_PROJECT_ID": "your-neon-project-id"
     }
 }

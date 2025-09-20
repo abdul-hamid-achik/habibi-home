@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  neondb:
+    image: neondatabase/neon_local:latest
+    ports:
+      - '5432:5432'
+    environment:
+      NEON_API_KEY: ${NEON_API_KEY}
+      NEON_PROJECT_ID: ${NEON_PROJECT_ID}
+      DRIVER: serverless
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  default:
+    name: habibi-home-network

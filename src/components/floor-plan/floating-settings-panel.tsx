@@ -220,8 +220,32 @@ export function FloatingSettingsPanel({
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-gray-600">Max Canvas Width (px)</Label>
+                    <Input
+                      type="number"
+                      value={settings.maxCanvasWidth || 1200}
+                      onChange={(e) => updateSetting('maxCanvasWidth', Number(e.target.value))}
+                      className="h-8 text-sm"
+                      min="400"
+                      max="2000"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-600">Max Canvas Height (px)</Label>
+                    <Input
+                      type="number"
+                      value={settings.maxCanvasHeight || 800}
+                      onChange={(e) => updateSetting('maxCanvasHeight', Number(e.target.value))}
+                      className="h-8 text-sm"
+                      min="300"
+                      max="1500"
+                    />
+                  </div>
+                </div>
                 <p className="text-xs text-gray-400">
-                  Total floor plan dimensions
+                  Total floor plan dimensions and canvas size constraints
                 </p>
               </div>
             </div>
@@ -271,6 +295,19 @@ export function FloatingSettingsPanel({
                   className="h-8 text-xs"
                 >
                   Centered
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSettingsChange({
+                    scale: 0.8,
+                    showGrid: true,
+                    showDimensions: true,
+                    canvasMode: 'fit-to-screen'
+                  })}
+                  className="h-8 text-xs"
+                >
+                  Post-Import
                 </Button>
                 <Button
                   variant="outline"

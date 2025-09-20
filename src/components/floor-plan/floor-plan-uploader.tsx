@@ -2,6 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,27 +10,33 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, FileImage, Loader2, Check, AlertCircle, Zap } from 'lucide-react';
 import { Label } from '@radix-ui/react-label';
 import { Input } from '../ui/input';
+import { z } from 'zod';
 
-interface FloorPlanAnalysisResult {
-  totalArea: number;
-  dimensions: {
-    width: number;
-    height: number;
-  };
-  zones: Array<{
-    name: string;
-    zoneId: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    type: string;
-  }>;
-  scale: number;
-  imageUrl: string;
-  imageSize: number;
-  processedAt: string;
-}
+const floorPlanAnalysisSchema = z.object({
+  totalArea: z.number().positive(),
+  dimensions: z.object({
+    width: z.number().positive(),
+    height: z.number().positive(),
+  }),
+  zones: z.array(z.object({
+    name: z.string().min(1),
+    zoneId: z.string().min(1),
+    x: z.number(),
+    y: z.number(),
+    w: z.number().positive(),
+    h: z.number().positive(),
+    type: z.string(),
+  })),
+  scale: z.number().positive(),
+  imageUrl: z.string().url(),
+  imageSize: z.number().positive(),
+  processedAt: z.string(),
+  shortId: z.string().length(8).optional(),
+  slug: z.string().optional(),
+  id: z.number().optional(),
+});
+
+type FloorPlanAnalysisResult = z.infer<typeof floorPlanAnalysisSchema>;
 
 interface FloorPlanUploaderProps {
   onAnalysisComplete: (analysis: FloorPlanAnalysisResult) => void;
@@ -37,12 +44,23 @@ interface FloorPlanUploaderProps {
 }
 
 export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUploaderProps) {
+  const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [lastAnalysis, setLastAnalysis] = useState<FloorPlanAnalysisResult | null>(null);
   const [totalArea, setTotalArea] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  // Helper function to validate analysis result
+  const validateAnalysisResult = (analysis: FloorPlanAnalysisResult) => {
+    const validationResult = floorPlanAnalysisSchema.safeParse(analysis);
+    if (!validationResult.success) {
+      console.error('Invalid analysis result:', validationResult.error);
+      throw new Error('Invalid analysis result format received from server');
+    }
+    return validationResult.data;
+  };
 
   const analyzeFloorPlan = async (file: File, userProvidedArea?: number) => {
     setIsUploading(true);
@@ -79,9 +97,20 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
 
       const analysis = await response.json();
 
+      // Validate the analysis result
+      const validatedAnalysis = validateAnalysisResult(analysis);
+
       setUploadProgress('Analysis complete!');
-      setLastAnalysis(analysis);
-      onAnalysisComplete(analysis);
+      setLastAnalysis(validatedAnalysis);
+
+      // Redirect to editor with the imported data
+      if (validatedAnalysis.shortId) {
+        setTimeout(() => {
+          router.push(`/editor/${validatedAnalysis.shortId}`);
+        }, 1000); // Small delay to show success message
+      } else {
+        onAnalysisComplete(validatedAnalysis);
+      }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -233,6 +262,7 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
               <AlertDescription>
                 <div className="space-y-2">
                   <p className="font-medium">Analysis Complete!</p>
+                  <p className="text-sm text-green-700">Redirecting to editor...</p>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <strong>Total Area:</strong> {lastAnalysis.totalArea} m²
@@ -270,7 +300,7 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
             </ol>
             <div className="mt-3 pt-3 border-t border-blue-200">
               <p className="text-xs text-blue-700">
-                <strong>Tips:</strong> Adding the total area greatly improves accuracy. Look for area information on your floor plan (like "84.23 m²").
+                <strong>Tips:</strong> Adding the total area greatly improves accuracy. Look for area information on your floor plan (like &quot;84.23 m²&quot;).
               </p>
             </div>
           </div>
@@ -297,9 +327,15 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
               </Button>
               <Button
                 size="sm"
-                onClick={() => onAnalysisComplete(lastAnalysis)}
+                onClick={() => {
+                  if (lastAnalysis.shortId) {
+                    router.push(`/editor/${lastAnalysis.shortId}`);
+                  } else {
+                    onAnalysisComplete(lastAnalysis);
+                  }
+                }}
               >
-                Use This Analysis
+                Open in Editor
               </Button>
             </div>
           )}

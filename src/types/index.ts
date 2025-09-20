@@ -48,6 +48,23 @@ export interface ProjectData {
   updatedAt: Date;
 }
 
+export interface ImportedFloorPlanData {
+  id: number;
+  shortId: string;
+  slug: string;
+  userId?: string;
+  originalImageUrl?: string;
+  originalImageWidth?: number;
+  originalImageHeight?: number;
+  analysisData: unknown;
+  dimensions: { width: number; height: number };
+  zones: FloorPlanZone[];
+  projectId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isProcessed: boolean;
+}
+
 // API request/response schemas
 export const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),

@@ -1,6 +1,3 @@
-# Prevent Cursor from auto-running the dev server
-package.json
-
 # Prevent Cursor from creating scripts folders or bash scripts
 scripts/
 *.sh

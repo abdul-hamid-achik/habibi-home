@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HomeIcon, RulerIcon, PackageIcon, UsersIcon, CheckCircleIcon } from "lucide-react";
 import Link from "next/link";
+import { UserButton } from "@stackframe/stack";
 
 export default function Home() {
   return (
@@ -15,9 +16,7 @@ export default function Home() {
               <span className="ml-2 text-xl font-bold text-gray-900">Habibi Home</span>
             </div>
             <div className="flex items-center">
-              <Button variant="ghost" size="sm">
-                Sign In
-              </Button>
+              <UserButton />
             </div>
           </div>
         </div>
@@ -31,7 +30,7 @@ export default function Home() {
             <span className="text-blue-600"> Plan Perfectly.</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Moving into a new home? Don't buy furniture you'll regret. Test layouts, measure twice, and create rooms you'll love living in.
+            Moving into a new home? Don&apos;t buy furniture you&apos;ll regret. Test layouts, measure twice, and create rooms you&apos;ll love living in.
           </p>
           <Link href="/editor">
             <Button size="lg" className="text-lg px-12 py-4 bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -54,7 +53,7 @@ export default function Home() {
               <ul className="text-red-700 space-y-2">
                 <li>• Bought a couch that was too big for the living room</li>
                 <li>• Spent hours moving heavy furniture around</li>
-                <li>• Wasted money on items that didn't fit</li>
+                <li>• Wasted money on items that didn&apos;t fit</li>
                 <li>• Argued with your partner about room layouts</li>
               </ul>
             </CardContent>
@@ -91,7 +90,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <CardDescription>
-                Every piece of furniture uses actual dimensions. No more surprises when your "perfect" sofa arrives and doesn't fit.
+                Every piece of furniture uses actual dimensions. No more surprises when your &quot;perfect&quot; sofa arrives and doesn&apos;t fit.
               </CardDescription>
             </CardContent>
           </Card>
