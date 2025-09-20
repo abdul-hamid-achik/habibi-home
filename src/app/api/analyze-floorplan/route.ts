@@ -4,8 +4,8 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { importedFloorPlans } from '@/lib/db/schema';
-import { stackServerApp } from '@/lib/stack-auth-server';
 import { eq } from 'drizzle-orm';
+import { stackServerApp } from '@/stack';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,

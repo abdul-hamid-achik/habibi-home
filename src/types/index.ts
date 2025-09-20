@@ -87,7 +87,9 @@ export const zoneSchema = z.object({
   y: z.number(),
   w: z.number(),
   h: z.number(),
+  type: z.string().optional(),
   color: z.string().optional(),
+  suggestedFurniture: z.array(z.string()).optional(),
 });
 
 export const furnitureItemSchema = z.object({
