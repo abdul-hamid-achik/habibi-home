@@ -3,7 +3,7 @@ import { put } from '@vercel/blob';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { importedFloorPlans } from '@/lib/db/schema';
+import { importedFloorPlans, insertImportedFloorPlanSchema } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { stackServerApp } from '@/app/stack';
 
@@ -11,14 +11,45 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-// Helper function to generate unique short ID
-function generateShortId(): string {
+// Helper function to generate unique short ID with collision detection
+async function generateUniqueShortId(): Promise<string> {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  const bytes = new Uint8Array(8);
+  let attempts = 0;
+  const maxAttempts = 10; // Prevent infinite loops
+
+  while (attempts < maxAttempts) {
+    // Use crypto.getRandomValues for cryptographically secure random bytes
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(bytes);
+    } else {
+      // Fallback for environments without crypto.getRandomValues
+      for (let i = 0; i < 8; i++) {
+        bytes[i] = Math.floor(Math.random() * 256);
+      }
+    }
+
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(bytes[i] % chars.length);
+    }
+
+    // Check if this shortId already exists in the database
+    const existing = await db
+      .select()
+      .from(importedFloorPlans)
+      .where(eq(importedFloorPlans.shortId, result))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return result; // Found a unique ID
+    }
+
+    attempts++;
   }
-  return result;
+
+  // If we've exhausted attempts, throw an error
+  throw new Error('Failed to generate unique shortId after maximum attempts');
 }
 
 // Helper function to generate SEO-friendly slug
@@ -449,7 +480,7 @@ export async function POST(request: NextRequest) {
     convertedZones.splice(0, convertedZones.length, ...validatedZones);
 
     // Generate unique identifiers
-    const shortId = generateShortId();
+    const shortId = await generateUniqueShortId();
     const slug = await generateUniqueSlug(`floor-plan-${Date.now()}`);
 
     // Get user session (optional for now)
@@ -462,21 +493,30 @@ export async function POST(request: NextRequest) {
       console.log('Auth check failed, continuing without user:', error);
     }
 
+    // Validate data before saving to database
+    const floorPlanData = {
+      shortId,
+      slug,
+      userId,
+      originalImageUrl: blob.url,
+      originalImageWidth: null, // TODO: Extract from image if needed
+      originalImageHeight: null,
+      analysisData: analysis,
+      dimensions: analysis.dimensions,
+      zones: convertedZones,
+      isProcessed: false,
+    };
+
+    const validationResult = insertImportedFloorPlanSchema.safeParse(floorPlanData);
+    if (!validationResult.success) {
+      console.error('Validation failed for imported floor plan:', validationResult.error.issues);
+      throw new Error(`Invalid floor plan data: ${validationResult.error.issues.map(issue => issue.message).join(', ')}`);
+    }
+
     // Save to database
     const [savedFloorPlan] = await db
       .insert(importedFloorPlans)
-      .values({
-        shortId,
-        slug,
-        userId,
-        originalImageUrl: blob.url,
-        originalImageWidth: null, // TODO: Extract from image if needed
-        originalImageHeight: null,
-        analysisData: analysis,
-        dimensions: analysis.dimensions,
-        zones: convertedZones,
-        isProcessed: false,
-      })
+      .values(validationResult.data)
       .returning();
 
     const result = {

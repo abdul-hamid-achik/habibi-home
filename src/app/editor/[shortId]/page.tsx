@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { z } from 'zod';
 import { FloorPlanEditor } from "@/components/floor-plan/floor-plan-editor";
-import { ImportedFloorPlanData, FloorPlanZone, FurnitureItemType, FloorPlanSettings } from '@/types';
+import { ImportedFloorPlanData, FloorPlanZone, FurnitureItemType, FloorPlanSettings, floorPlanZoneSchema, furnitureItemSchema, floorPlanSettingsSchema } from '@/types';
 import { DEFAULT_FURNITURE_CATALOG } from '@/lib/furniture-catalog';
 
 interface ImportedFloorPlanResponse extends ImportedFloorPlanData {
@@ -13,14 +14,34 @@ interface ImportedFloorPlanResponse extends ImportedFloorPlanData {
 
 export default function ImportedEditorPage() {
     const params = useParams();
-    const shortId = params.shortId as string;
+    const rawShortId = params.shortId as string;
+
+    // Client-side validation and sanitization
+    const shortIdSchema = z.object({
+        shortId: z.string()
+            .min(1, "ShortId is required")
+            .length(8, "ShortId must be exactly 8 characters")
+            .regex(/^[a-zA-Z0-9]+$/, "ShortId must contain only alphanumeric characters")
+    });
+
+    // Sanitize the shortId
+    const sanitizedShortId = rawShortId?.replace(/[\x00-\x1f\x7f-\x9f]/g, '').trim() || '';
+
+    // Validate the sanitized shortId
+    const validationResult = shortIdSchema.safeParse({ shortId: sanitizedShortId });
+
+    const shortId = validationResult.success ? sanitizedShortId : null;
 
     const [importedData, setImportedData] = useState<ImportedFloorPlanResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!shortId) return;
+        if (!shortId || !validationResult.success) {
+            setError('Invalid shortId format');
+            setLoading(false);
+            return;
+        }
 
         const fetchImportedFloorPlan = async () => {
             try {
@@ -38,11 +59,100 @@ export default function ImportedEditorPage() {
         };
 
         fetchImportedFloorPlan();
-    }, [shortId]);
+    }, [shortId, validationResult.success]);
 
-    const handleSave = (data: { zones: FloorPlanZone[]; furniture: FurnitureItemType[]; settings: FloorPlanSettings }) => {
-        console.log("Saving project data:", data);
-        // TODO: Implement actual save functionality
+    const handleSave = async (data: { zones: FloorPlanZone[]; furniture: FurnitureItemType[]; settings: FloorPlanSettings }) => {
+        try {
+            // Validate data before saving
+            const zonesValidation = z.array(floorPlanZoneSchema).safeParse(data.zones);
+            if (!zonesValidation.success) {
+                throw new Error(`Invalid zones data: ${zonesValidation.error.issues.map(issue => issue.message).join(', ')}`);
+            }
+
+            const furnitureValidation = z.array(furnitureItemSchema).safeParse(data.furniture);
+            if (!furnitureValidation.success) {
+                throw new Error(`Invalid furniture data: ${furnitureValidation.error.issues.map(issue => issue.message).join(', ')}`);
+            }
+
+            const settingsValidation = floorPlanSettingsSchema.safeParse(data.settings);
+            if (!settingsValidation.success) {
+                throw new Error(`Invalid settings data: ${settingsValidation.error.issues.map(issue => issue.message).join(', ')}`);
+            }
+            // First, we need to create a project for this imported floor plan
+            // The imported floor plan data will be converted to a project
+            const createProjectResponse = await fetch('/api/projects', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: `Floor Plan ${importedData?.shortId || shortId}`,
+                    description: `Project created from imported floor plan ${importedData?.shortId || shortId}`,
+                    apartmentType: 'type_7',
+                }),
+            });
+
+            if (!createProjectResponse.ok) {
+                const errorData = await createProjectResponse.json();
+                throw new Error(errorData.details || errorData.error || 'Failed to create project');
+            }
+
+            const createdProject = await createProjectResponse.json();
+
+            // Now save the project data (zones, furniture, settings)
+            const saveResponse = await fetch(`/api/projects/${createdProject.id}/save`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    zones: data.zones.map(zone => ({
+                        zoneId: zone.zoneId,
+                        name: zone.name,
+                        x: zone.x,
+                        y: zone.y,
+                        w: zone.w,
+                        h: zone.h,
+                        color: zone.color,
+                        suggestedFurniture: zone.suggestedFurniture,
+                    })),
+                    furniture: data.furniture.map(item => ({
+                        name: item.name,
+                        x: item.x,
+                        y: item.y,
+                        w: item.w,
+                        h: item.h,
+                        r: item.r,
+                        color: item.color,
+                        catalogId: item.catalogId,
+                        zoneId: item.zoneId,
+                    })),
+                    settings: {
+                        apartmentWidth: data.settings.apartmentWidth,
+                        apartmentHeight: data.settings.apartmentHeight,
+                        scale: data.settings.scale,
+                        snapGrid: data.settings.snap,
+                        showGrid: data.settings.showGrid,
+                        showDimensions: data.settings.showDimensions,
+                    },
+                }),
+            });
+
+            if (!saveResponse.ok) {
+                const errorData = await saveResponse.json();
+                throw new Error(errorData.details || errorData.error || 'Failed to save project data');
+            }
+
+            // Show success message
+            alert(`Project saved successfully! Project ID: ${createdProject.id}`);
+
+            // Optionally redirect to the project page
+            // window.location.href = `/editor/${createdProject.id}`;
+
+        } catch (error) {
+            console.error('Save error:', error);
+            alert(`Failed to save project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     };
 
     if (loading) {
@@ -84,15 +194,14 @@ export default function ImportedEditorPage() {
         w: zone.w,
         h: zone.h,
         color: undefined,
-        type: zone.type,
         // Add default suggested furniture if not provided
-        suggestedFurniture: zone.suggestedFurniture || getDefaultFurnitureForZone(zone.name, zone.type || ''),
+        suggestedFurniture: zone.suggestedFurniture || getDefaultFurnitureForZone(zone.name, zone.zoneId),
     }));
 
     // Helper function to get default furniture suggestions based on zone type
-    function getDefaultFurnitureForZone(zoneName: string, zoneType: string): string[] {
+    function getDefaultFurnitureForZone(zoneName: string, zoneId: string): string[] {
         const name = zoneName.toLowerCase();
-        const type = zoneType.toLowerCase();
+        const type = zoneId.toLowerCase();
 
         // Living room
         if (name.includes('living') || type === 'living') {
