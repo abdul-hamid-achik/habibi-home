@@ -7,9 +7,34 @@ import { importedFloorPlans, insertImportedFloorPlanSchema } from '@/lib/db/sche
 import { eq } from 'drizzle-orm';
 import { stackServerApp } from '@/app/stack';
 
+// Roboflow API configuration
+const ROBOFLOW_API_KEY = process.env.ROBOFLOW_API_KEY || process.env.NEXT_PUBLIC_ROBOFLOW_PUBLISHEABLE_API_KEY;
+const ROBOFLOW_MODEL_ENDPOINT = 'https://serverless.roboflow.com/floor-plan-wnhb5/4';
+// Enable Roboflow by default when API key is available (can be disabled with NEXT_PUBLIC_ROBOFLOW_ENABLED=false)
+const ROBOFLOW_ENABLED = process.env.NEXT_PUBLIC_ROBOFLOW_ENABLED !== 'false' && !!ROBOFLOW_API_KEY;
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
+
+interface RoboflowPrediction {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+  class: string;
+  class_id: number;
+}
+
+interface RoboflowResponse {
+  time: number;
+  image: {
+    width: number;
+    height: number;
+  };
+  predictions: RoboflowPrediction[];
+}
 
 // Helper function to generate unique short ID with collision detection
 async function generateUniqueShortId(): Promise<string> {
@@ -127,39 +152,101 @@ const FloorPlanAnalysisSchema = z.object({
   scale: z.number(),
 });
 
-// Multi-step analysis for better reliability:
-// 1. Layout detection → basic room identification
-// 2. Dimension extraction → measurements and scale
-// 3. Zone refinement → precise coordinates
-// 4. Validation → final cleanup and validation
-const createAnalysisPrompt = (totalArea?: number) => `
-You are an expert architectural floor plan analyzer. Focus on ACCURATE room identification and coordinate extraction.
+// Try grid-based detection approach
+const createGridAnalysisPrompt = (totalArea?: number) => `
+IMPORTANT: You are analyzing a SPECIFIC floor plan image with a grid overlay. Your task is to identify the EXACT room boundaries.
 
-CRITICAL: Respond with ONLY valid JSON. No text before or after.
+THE IMAGE SHOWS:
+- A floor plan with grid lines
+- Black walls dividing the space into rooms
+- Each room occupies specific grid cells
 
-${totalArea ? `Total area provided: ${totalArea} m²` : 'Estimate total area if needed'}
+YOUR TASK:
+1. Look at the grid in the image
+2. Identify each room by the grid cells it occupies
+3. Return coordinates that match the EXACT grid positions
 
-PRIORITY: Identify rooms first, then coordinates. Be precise with percentages.
+For example, if you see:
+- A room in the top-left occupying 4x4 grid cells, return appropriate x,y,w,h
+- A narrow hallway along the center, return its exact position
+- DO NOT return generic placements
 
-IMPORTANT: The coordinate system should be:
-- 0,0 is the TOP-LEFT corner of the floor plan
-- x increases to the RIGHT
-- y increases DOWNWARD
-- Return coordinates as percentages (0-100) of the total floor plan dimensions
-- Ensure zones don't excessively overlap
-- Organize zones in a realistic layout
+${totalArea ? `Total area: ${totalArea} m²` : ''}
 
-If you see room labels, use them. Otherwise:
-- Largest central space → Living Room
-- Kitchen features (counters, appliances) → Kitchen
-- Small private rooms → Bedroom
-- Very small rooms with fixtures → Bathroom
-- Entry point → Entrance
-- Connecting areas → Hallway
+Return ONLY valid JSON with zones matching the EXACT room positions in the grid:
+{
+  "totalArea": ${totalArea || 85.5},
+  "dimensions": {"width": 12.5, "height": 8.0},
+  "zones": [
+    {
+      "name": "Room Name based on what you see",
+      "zoneId": "unique_id", 
+      "x": 10,
+      "y": 10,
+      "w": 30,
+      "h": 30,
+      "type": "living|bedroom|kitchen|bathroom|hallway|dining|entrance",
+      "suggestedFurniture": ["appropriate furniture"]
+    }
+  ],
+  "scale": 50
+}`;
 
-For each zone, also specify appropriate furniture types that would typically go in that room.
+// Create a two-phase analysis approach
+const createDescriptivePrompt = () => `
+You are looking at a specific floor plan image. Describe EXACTLY what you see in THIS image.
 
-JSON format (respond with ONLY this JSON, no other text):
+DO NOT give generic descriptions. Look at THIS SPECIFIC floor plan and tell me:
+
+ANALYZE THE FLOOR PLAN BY:
+
+1. **Room Detection** - Even without labels, identify rooms by:
+   - Size: Larger spaces are usually living rooms
+   - Kitchen fixtures: Look for counters, sinks, appliances drawn as rectangles/squares
+   - Bathrooms: Small rooms with toilet/shower symbols
+   - Bedrooms: Medium-sized enclosed rooms with doors
+   - Hallways: Narrow connecting spaces
+
+2. **Visual Clues**:
+   - Thick black lines = walls
+   - Gaps in walls = doorways
+   - Small squares/rectangles within rooms = fixtures (toilets, sinks, etc.)
+   - L-shaped areas often = kitchens with counters
+   - Rectangular boxes in bathrooms = showers/tubs
+
+3. **Spatial Analysis**:
+   - Describe the location of EACH distinct space you see
+   - Use directions: top-left, bottom-right, center, etc.
+   - Note which rooms connect to each other
+   - Identify the main entrance (usually opens to a hallway or living area)
+
+4. **Count and List**:
+   - How many distinct rooms/spaces do you see?
+   - What is the approximate shape of each room?
+   - Which rooms have doors vs open connections?
+
+Even if you can't be 100% certain of room types, describe EVERY space you see and make educated guesses based on size and fixtures.`;
+
+const createExtractionPrompt = (description: string, totalArea?: number) => `
+Based on this floor plan description:
+"${description}"
+
+Convert to JSON with ALL required fields for each room.
+
+${totalArea ? `Total area: ${totalArea} m²` : 'Estimate total area around 85 m²'}
+
+MAPPING RULES:
+- "top-left" → x:10, y:10
+- "top-center" → x:40, y:10
+- "top-right" → x:70, y:10
+- "center" → x:40, y:40
+- "bottom-left" → x:10, y:70
+- "bottom-center" → x:40, y:70
+- "bottom-right" → x:70, y:70
+- "left side" → x:10
+- "right side" → x:70
+
+Return EXACTLY this structure with ALL fields filled:
 {
   "totalArea": ${totalArea || 85.5},
   "dimensions": {
@@ -171,35 +258,191 @@ JSON format (respond with ONLY this JSON, no other text):
       "name": "Living Room",
       "zoneId": "living_room",
       "x": 10,
-      "y": 15,
-      "width": 35,
-      "height": 25,
+      "y": 10,
+      "w": 40,
+      "h": 40,
       "type": "living",
-      "suggestedFurniture": ["sofa", "coffee table", "side table", "armchair"]
-    },
-    {
-      "name": "Kitchen",
-      "zoneId": "kitchen",
-      "x": 45,
-      "y": 15,
-      "width": 25,
-      "height": 20,
-      "type": "kitchen",
-      "suggestedFurniture": ["dining table", "stove", "refrigerator", "dishwasher"]
-    },
-    {
-      "name": "Bedroom",
-      "zoneId": "bedroom_1",
-      "x": 70,
-      "y": 15,
-      "width": 30,
-      "height": 40,
-      "type": "bedroom",
-      "suggestedFurniture": ["bed", "nightstand", "dresser", "wardrobe"]
+      "suggestedFurniture": ["sofa", "coffee table"]
     }
   ],
   "scale": 50
 }`;
+
+// Map Roboflow classes to our room types
+function mapClassToRoomType(roboflowClass: string): string {
+  const classMap: { [key: string]: string } = {
+    'bedroom': 'bedroom',
+    'living_room': 'living',
+    'kitchen': 'kitchen',
+    'bathroom': 'bathroom',
+    'dining_room': 'dining',
+    'office': 'office',
+    'closet': 'storage',
+    'hallway': 'hallway',
+    'room': 'room',
+    'space': 'room',
+  };
+
+  return classMap[roboflowClass.toLowerCase()] || 'room';
+}
+
+// Helper function to get furniture for room type
+function getFurnitureForType(roomType: string): string[] {
+  const furnitureMap: Record<string, string[]> = {
+    living: ["sofa", "coffee table", "TV stand", "armchair"],
+    bedroom: ["bed", "nightstand", "wardrobe", "dresser"],
+    kitchen: ["dining table", "stove", "refrigerator", "counter"],
+    bathroom: ["toilet", "sink", "shower", "mirror"],
+    hallway: ["console table", "coat rack"],
+    dining: ["dining table", "chairs", "sideboard"],
+    entrance: ["shoe rack", "coat rack", "mirror"],
+    utility: ["washer", "dryer", "shelving"],
+    storage: ["shelving", "storage boxes"],
+    office: ["desk", "office chair", "bookshelf", "filing cabinet"],
+    room: ["table", "chairs", "lighting"],
+  };
+
+  return furnitureMap[roomType] || ["furniture"];
+}
+
+// Roboflow analysis function
+async function analyzeWithRoboflow(file: File, userTotalArea?: number) {
+  if (!ROBOFLOW_API_KEY) {
+    throw new Error('Roboflow API key not configured');
+  }
+
+  // Convert file to base64 for Roboflow API
+  const bytes = await file.arrayBuffer();
+  const base64 = Buffer.from(bytes).toString('base64');
+
+  console.log('Analyzing floor plan with Roboflow...');
+
+  // Call Roboflow API using the correct format
+  const url = new URL(ROBOFLOW_MODEL_ENDPOINT);
+  url.searchParams.append('api_key', ROBOFLOW_API_KEY);
+  url.searchParams.append('confidence', '0.3');
+  url.searchParams.append('overlap', '0.5');
+
+  const roboflowResponse = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: base64,
+  });
+
+  if (!roboflowResponse.ok) {
+    const errorText = await roboflowResponse.text();
+    console.error('Roboflow API error:', errorText);
+    throw new Error(`Roboflow API returned ${roboflowResponse.status}: ${errorText}`);
+  }
+
+  const roboflowResult: RoboflowResponse = await roboflowResponse.json();
+  console.log('🤖 Roboflow Raw Response:', JSON.stringify(roboflowResult, null, 2));
+  console.log('Roboflow predictions:', roboflowResult.predictions.length);
+
+  // Convert Roboflow predictions to our zone format  
+  const filteredPredictions = roboflowResult.predictions.filter(pred => {
+    // Filter out doors and low confidence predictions
+    if (pred.class === 'door') {
+      console.log(`🚫 Filtered out door: ${pred.width}x${pred.height}, confidence: ${pred.confidence}`);
+      return false;
+    }
+    if (pred.confidence < 0.4) {
+      console.log(`🚫 Filtered out low confidence ${pred.class}: ${pred.confidence}`);
+      return false;
+    }
+
+    // Filter out very small detections by area (likely fixtures, not rooms)
+    const area = pred.width * pred.height;
+    const minRoomArea = 1000; // Minimum 1000 sq pixels (e.g., 32x32)
+    if (area < minRoomArea) {
+      console.log(`🚫 Filtered out tiny ${pred.class}: ${pred.width}x${pred.height} (${area} sq px)`);
+      return false;
+    }
+
+    console.log(`✅ Keeping ${pred.class}: ${pred.width}x${pred.height} (${area} sq px), confidence: ${pred.confidence}`);
+    return true;
+  });
+
+  console.log(`📊 Filtered ${roboflowResult.predictions.length} predictions down to ${filteredPredictions.length} rooms`);
+
+  const zones = filteredPredictions
+    .map((pred, index) => {
+      const roomType = mapClassToRoomType(pred.class);
+      let roomName = pred.class.charAt(0).toUpperCase() + pred.class.slice(1).replace('_', ' ');
+
+      // Better naming for generic rooms
+      if (pred.class === 'room') {
+        roomName = `Room ${index + 1}`;
+      }
+
+      return {
+        name: roomName,
+        zoneId: `roboflow_${pred.class}_${index}`,
+        x: Math.round(pred.x - pred.width / 2), // Roboflow gives center coordinates
+        y: Math.round(pred.y - pred.height / 2),
+        w: Math.round(pred.width),
+        h: Math.round(pred.height),
+        type: roomType,
+        suggestedFurniture: getFurnitureForType(roomType),
+      };
+    });
+
+  console.log('🔄 Roboflow Converted Zones:', JSON.stringify(zones, null, 2));
+
+  // If no rooms detected, provide a basic layout
+  if (zones.length === 0) {
+    console.log('No rooms detected by Roboflow, creating basic layout');
+    const imageWidth = roboflowResult.image.width || 800;
+    const imageHeight = roboflowResult.image.height || 600;
+
+    zones.push({
+      name: 'Main Room',
+      zoneId: 'main_room_1',
+      x: Math.round(imageWidth * 0.1),
+      y: Math.round(imageHeight * 0.1),
+      w: Math.round(imageWidth * 0.8),
+      h: Math.round(imageHeight * 0.8),
+      type: 'room',
+      suggestedFurniture: ['table', 'chairs'],
+    });
+  }
+
+  const totalArea = userTotalArea || 85.5;
+
+  // Convert from image pixels to percentage coordinates (0-100) 
+  // This matches the format that GPT-4 Vision uses
+  const imageWidth = roboflowResult.image.width || 800;
+  const imageHeight = roboflowResult.image.height || 600;
+
+  console.log(`🔄 Converting from image ${imageWidth}×${imageHeight}px to percentage coordinates`);
+
+  // Convert zones from pixel coordinates to percentage coordinates
+  const percentageZones = zones.map(zone => ({
+    ...zone,
+    x: Math.round((zone.x / imageWidth) * 100),
+    y: Math.round((zone.y / imageHeight) * 100),
+    w: Math.round((zone.w / imageWidth) * 100),
+    h: Math.round((zone.h / imageHeight) * 100),
+  }));
+
+  console.log('🎯 Percentage Zones:', JSON.stringify(percentageZones, null, 2));
+
+  const finalAnalysis = {
+    totalArea,
+    dimensions: {
+      width: 12.5, // meters (will be processed by main function)
+      height: 8.0
+    },
+    zones: percentageZones,
+    scale: 50, // will be adjusted by main function
+  };
+
+  console.log('✅ Roboflow Final Analysis:', JSON.stringify(finalAnalysis, null, 2));
+
+  return finalAnalysis;
+}
 
 // Helper function to validate and optimize zone layout
 function validateAndOptimizeZones(zones: Zone[], canvasWidth: number, canvasHeight: number): Zone[] {
@@ -323,133 +566,34 @@ export async function POST(request: NextRequest) {
     // Parse user-provided total area
     const userTotalArea = totalAreaString ? parseFloat(totalAreaString) : undefined;
 
-    // Convert image to base64 for OpenAI
-    const arrayBuffer = await file.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const mimeType = file.type;
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-
-    // Create dynamic prompt with total area if provided
-    const analysisPrompt = createAnalysisPrompt(userTotalArea);
-
-    // Analyze with OpenAI Vision
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert architectural floor plan analyzer. You MUST respond with ONLY valid JSON objects. Never include explanatory text, apologies, or commentary. Always output pure JSON."
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: analysisPrompt,
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: dataUrl,
-                detail: "high"
-              },
-            },
-          ],
-        },
-      ],
-      max_tokens: 1500,
-      temperature: 0.0, // Zero temperature for most consistent analysis
-    });
-
-    const analysisText = response.choices[0]?.message?.content;
-
-    if (!analysisText) {
-      throw new Error('No analysis received from OpenAI');
-    }
-
-    console.log('OpenAI Response:', analysisText);
-
-    // Parse and validate the JSON response using Zod
     let analysis: FloorPlanAnalysis;
-    try {
-      // Clean the response text
-      let cleanText = analysisText.trim();
+    let analysisMethod = 'gpt-vision';
 
-      // Remove any markdown code blocks
-      cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    console.log(`🤖 Roboflow enabled: ${ROBOFLOW_ENABLED}, API key present: ${!!ROBOFLOW_API_KEY}`);
 
-      // Extract JSON object if embedded in text
-      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : cleanText;
+    // Try Roboflow first if enabled (enabled by default when API key is available)
+    if (ROBOFLOW_ENABLED) {
+      try {
+        console.log('Trying Roboflow analysis...');
+        analysis = await analyzeWithRoboflow(file, userTotalArea);
+        analysisMethod = 'roboflow';
+        console.log('Roboflow analysis successful!');
+      } catch (roboflowError) {
+        console.error('❌ Roboflow analysis failed:', roboflowError);
+        console.log('⬇️ Falling back to GPT-4 Vision...');
 
-      // Parse JSON first, then validate with Zod
-      const rawAnalysis = JSON.parse(jsonString);
-      analysis = FloorPlanAnalysisSchema.parse(rawAnalysis);
-    } catch (parseError) {
-      console.error('Failed to parse/validate OpenAI response:', analysisText);
-      console.error('Parse error:', parseError);
-
-      // Enhanced error handling for different floor plan types
-      const refusalPatterns = [
-        "unable to analyze",
-        "can't analyze",
-        "cannot analyze",
-        "please provide",
-        "necessary details",
-        "i'm unable",
-        "i cannot",
-        "i can't",
-        "unable to process",
-        "cannot process",
-        "direct analysis",
-        "not enough information",
-        "insufficient detail",
-        "cannot extract",
-        "no clear rooms",
-        "too complex",
-        "too simple",
-        "cannot identify"
-      ];
-
-      const isRefusal = refusalPatterns.some(pattern =>
-        analysisText.toLowerCase().includes(pattern)
-      );
-
-      // Detect if it's a complex floor plan (furniture, detailed styling)
-      const isComplexFloorPlan = analysisText.toLowerCase().includes('furniture') ||
-        analysisText.toLowerCase().includes('decorative') ||
-        analysisText.toLowerCase().includes('styled');
-
-      if (isRefusal) {
-        const errorMessage = isComplexFloorPlan
-          ? 'Complex floor plan detected. Try with a simpler architectural drawing.'
-          : 'Basic floor plan detected. Add room labels and measurements for better results.';
-
-        return NextResponse.json(
-          {
-            error: 'AI Vision Analysis Limited',
-            details: `The AI model could not extract detailed room information from this floor plan. ${errorMessage}`,
-            suggestion: 'For best results: 1) Use clear architectural drawings 2) Add room labels 3) Include measurements 4) Avoid decorative elements',
-            totalArea: userTotalArea || 85.5,
-            dimensions: { width: 12.5, height: 8.0 },
-            zones: [],
-            scale: 50,
-            imageUrl: blob.url,
-            imageSize: file.size,
-            processedAt: new Date().toISOString()
-          },
-          { status: 422 }
-        );
+        // Fall back to GPT-4 Vision
+        analysis = await analyzeWithGPTVision(file, userTotalArea);
+        analysisMethod = 'gpt-vision-fallback';
+        console.log('✅ GPT-4 Vision fallback completed');
       }
-
-      throw new Error(`Invalid analysis format received: ${parseError}`);
+    } else {
+      // Use GPT-4 Vision directly
+      console.log('Using GPT-4 Vision analysis...');
+      analysis = await analyzeWithGPTVision(file, userTotalArea);
     }
-
-    // Zod validation already ensures the structure is complete
 
     // Convert percentage-based coordinates to absolute coordinates based on analysis dimensions
-    // The analysis returns coordinates as percentages of the total floor plan dimensions
     const FLOOR_PLAN_WIDTH_CM = Math.round(analysis.dimensions.width * 100); // Convert meters to cm
     const FLOOR_PLAN_HEIGHT_CM = Math.round(analysis.dimensions.height * 100); // Convert meters to cm
 
@@ -525,6 +669,7 @@ export async function POST(request: NextRequest) {
       imageUrl: blob.url,
       imageSize: file.size,
       processedAt: new Date().toISOString(),
+      analysisMethod,
       // New fields for URL routing
       id: savedFloorPlan.id,
       shortId: savedFloorPlan.shortId,
@@ -544,4 +689,119 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// GPT-4 Vision analysis function (fallback)
+async function analyzeWithGPTVision(file: File, userTotalArea?: number): Promise<FloorPlanAnalysis> {
+  // Convert image to base64 for OpenAI
+  const arrayBuffer = await file.arrayBuffer();
+  const base64 = Buffer.from(arrayBuffer).toString('base64');
+  const mimeType = file.type;
+  const dataUrl = `data:${mimeType};base64,${base64}`;
+
+  // Debug: Check if image data is valid
+  console.log('Image details:', {
+    fileSize: file.size,
+    mimeType: mimeType,
+    base64Length: base64.length,
+    dataUrlPreview: dataUrl.substring(0, 50) + '...'
+  });
+
+  // Phase 1: Get detailed description of the floor plan
+  console.log('Phase 1: Getting floor plan description...');
+  const descriptionResponse = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You have computer vision capabilities. Look at the PROVIDED IMAGE and describe EXACTLY what you see. Do not give generic floor plan descriptions. Analyze THIS SPECIFIC image's walls, rooms, and grid layout."
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: createDescriptivePrompt(),
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: dataUrl,
+              detail: "high"
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: 1000,
+    temperature: 0.2,
+  });
+
+  const description = descriptionResponse.choices[0]?.message?.content;
+  console.log('Floor plan description:', description);
+
+  if (!description) {
+    throw new Error('Failed to get floor plan description');
+  }
+
+  // Phase 2: Convert description to structured data
+  console.log('Phase 2: Converting to structured data...');
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a precise data converter. Take floor plan descriptions and convert them into exact JSON coordinates. Place rooms EXACTLY where they are described in the input. Never use generic placements."
+      },
+      {
+        role: "user",
+        content: createExtractionPrompt(description, userTotalArea),
+      },
+    ],
+    max_tokens: 1500,
+    temperature: 0.0,
+  });
+
+  const analysisText = response.choices[0]?.message?.content;
+
+  if (!analysisText) {
+    throw new Error('No analysis received from OpenAI');
+  }
+
+  console.log('OpenAI Response:', analysisText);
+
+  // Parse and validate the JSON response using Zod
+  let cleanText = analysisText.trim();
+
+  // Remove any markdown code blocks
+  cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+
+  // Extract JSON object if embedded in text
+  const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+  const jsonString = jsonMatch ? jsonMatch[0] : cleanText;
+
+  // Parse JSON first, then validate with Zod
+  const rawAnalysis = JSON.parse(jsonString);
+
+  // Transform and ensure all required fields
+  if (rawAnalysis.zones && Array.isArray(rawAnalysis.zones)) {
+    rawAnalysis.zones = rawAnalysis.zones.map((zone: Record<string, unknown>, index: number) => {
+      const zoneType = (zone.type as string) || 'room';
+      return {
+        ...zone,
+        // Ensure w/h instead of width/height
+        w: zone.w ?? zone.width,
+        h: zone.h ?? zone.height,
+        width: undefined,
+        height: undefined,
+        // Add missing required fields
+        name: zone.name || `${zoneType.charAt(0).toUpperCase() + zoneType.slice(1)} ${index + 1}`,
+        zoneId: zone.zoneId || `${zoneType}_${index + 1}`,
+        suggestedFurniture: zone.suggestedFurniture || getFurnitureForType(zoneType)
+      };
+    });
+  }
+
+  return FloorPlanAnalysisSchema.parse(rawAnalysis);
 }

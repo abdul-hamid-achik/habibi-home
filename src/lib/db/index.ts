@@ -5,7 +5,7 @@ import * as schema from "./schema";
 
 const connectionString = process.env.NODE_ENV === 'production'
     ? process.env.DATABASE_URL!
-    : 'postgres://neon:npg@localhost:5432/neondb';
+    : 'postgres://neon:npg@localhost:5432/neondb?sslmode=require';
 
 if (process.env.NODE_ENV === 'development') {
     // Point the serverless driver to the local proxy

@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, FileImage, Loader2, Check, AlertCircle, Zap } from 'lucide-react';
+import { Upload, FileImage, Loader2, Check, AlertCircle, Zap, X } from 'lucide-react';
 import { Label } from '@radix-ui/react-label';
 import { Input } from '../ui/input';
 import { z } from 'zod';
@@ -51,6 +51,16 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
   const [lastAnalysis, setLastAnalysis] = useState<FloorPlanAnalysisResult | null>(null);
   const [totalArea, setTotalArea] = useState<string>('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Clean up preview URL when component unmounts or file changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   // Helper function to validate analysis result
   const validateAnalysisResult = (analysis: FloorPlanAnalysisResult) => {
@@ -76,7 +86,11 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
         formData.append('totalArea', userProvidedArea.toString());
       }
 
-      setUploadProgress('Analyzing with AI...');
+      setUploadProgress('Analyzing floor plan...');
+
+      // Smart analysis with automatic fallback (Roboflow → GPT-4 Vision)
+      console.log('Analyzing floor plan...');
+      setUploadProgress('Analyzing with Computer Vision...');
 
       const response = await fetch('/api/analyze-floorplan', {
         method: 'POST',
@@ -127,8 +141,15 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
     if (file) {
       setUploadedFile(file);
       setError(null);
+
+      // Create preview URL for the image
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
     }
-  }, []);
+  }, [previewUrl]);
 
   const handleAnalyze = () => {
     if (!uploadedFile) return;
@@ -167,41 +188,70 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div {...getRootProps()} className={dropzoneClasses}>
-            <input {...getInputProps()} />
-            <div className="space-y-4">
-              {isUploading ? (
-                <div className="flex flex-col items-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                  <p className="text-sm text-gray-600 mt-2">{uploadProgress}</p>
-                </div>
-              ) : (
-                <>
-                  <Upload className="w-12 h-12 mx-auto text-gray-400" />
-                  <div>
-                    {isDragActive ? (
-                      <p className="text-blue-600 font-medium">Drop your floor plan here!</p>
-                    ) : (
-                      <div>
-                        <p className="font-medium">Drop floor plan image here, or click to browse</p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Supports JPG, PNG, GIF up to 10MB
-                        </p>
-                      </div>
-                    )}
+          {/* Only show dropzone when no file is uploaded */}
+          {!uploadedFile && (
+            <div {...getRootProps()} className={dropzoneClasses}>
+              <input {...getInputProps()} />
+              <div className="space-y-4">
+                {isUploading ? (
+                  <div className="flex flex-col items-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    <p className="text-sm text-gray-600 mt-2">{uploadProgress}</p>
                   </div>
-                </>
-              )}
+                ) : (
+                  <>
+                    <Upload className="w-12 h-12 mx-auto text-gray-400" />
+                    <div>
+                      {isDragActive ? (
+                        <p className="text-blue-600 font-medium">Drop your floor plan here!</p>
+                      ) : (
+                        <div>
+                          <p className="font-medium">Drop floor plan image here, or click to browse</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Supports JPG, PNG, GIF up to 10MB
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Area Input and Analyze Button */}
           {uploadedFile && !lastAnalysis && (
             <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+              {/* Image Preview */}
+              {previewUrl && (
+                <div className="relative w-full h-64 bg-white rounded-lg overflow-hidden border">
+                  <img
+                    src={previewUrl}
+                    alt="Floor plan preview"
+                    className="w-full h-full object-contain"
+                  />
+                  <button
+                    onClick={() => {
+                      setUploadedFile(null);
+                      if (previewUrl) {
+                        URL.revokeObjectURL(previewUrl);
+                        setPreviewUrl(null);
+                      }
+                      setTotalArea('');
+                      setError(null);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+                    aria-label="Remove image"
+                  >
+                    <X className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center space-x-2">
                 <FileImage className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-medium text-green-700">
-                  {uploadedFile.name} uploaded
+                  {uploadedFile.name}
                 </span>
               </div>
 
@@ -316,7 +366,19 @@ export function FloorPlanUploader({ onAnalysisComplete, className }: FloorPlanUp
                   fileInput.accept = 'image/*';
                   fileInput.onchange = (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
-                    if (file) analyzeFloorPlan(file);
+                    if (file) {
+                      setUploadedFile(file);
+
+                      // Clean up old preview and create new one
+                      if (previewUrl) {
+                        URL.revokeObjectURL(previewUrl);
+                      }
+                      const url = URL.createObjectURL(file);
+                      setPreviewUrl(url);
+
+                      setTotalArea('');
+                      setLastAnalysis(null);
+                    }
                   };
                   fileInput.click();
                 }}
