@@ -1,11 +1,11 @@
 "use client";
 
-import { FloorPlanEditor } from "@/components/floor-plan/floor-plan-editor";
+import { EditorShell } from "@/features/floor_plan/editor/editor_shell";
 
 export default function EditorPage() {
     return (
         <div className="w-full h-screen">
-            <FloorPlanEditor
+            <EditorShell
                 onSave={(data) => {
                     console.log('Saved project data:', data);
                     // Here you would typically save to your backend

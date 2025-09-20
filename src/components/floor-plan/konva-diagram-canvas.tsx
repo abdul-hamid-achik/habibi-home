@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Line, Text, Transformer, Group } from 'react-konva';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,14 +15,11 @@ import {
     Download,
     Trash2,
     Copy,
-    RotateCw,
-    Move,
-    Palette,
-    Grid3X3
 } from 'lucide-react';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
-import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from '@/types';
+import { FloorPlanZone, FurnitureItemType } from '@/types';
+import { cm2px } from '@/features/floor_plan/utils/units';
 
 // Drawing tool types
 export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'line' | 'freehand' | 'text';
@@ -98,7 +95,7 @@ export function KonvaDiagramCanvas({
     const renderGrid = () => {
         if (!showGrid) return null;
 
-        const gridSize = 25 * scale;
+        const gridSize = cm2px(25, scale);
         const lines = [];
 
         // Vertical lines
@@ -135,10 +132,10 @@ export function KonvaDiagramCanvas({
         return zones.map(zone => (
             <Rect
                 key={`zone-${zone.id}`}
-                x={zone.x * scale}
-                y={zone.y * scale}
-                width={zone.w * scale}
-                height={zone.h * scale}
+                x={cm2px(zone.x, scale)}
+                y={cm2px(zone.y, scale)}
+                width={cm2px(zone.w, scale)}
+                height={cm2px(zone.h, scale)}
                 fill={zone.color || '#f3f4f6'}
                 stroke="#d1d5db"
                 strokeWidth={1}
@@ -153,14 +150,14 @@ export function KonvaDiagramCanvas({
         return furniture.map(item => (
             <Group
                 key={`furniture-${item.id}`}
-                x={item.x * scale}
-                y={item.y * scale}
+                x={cm2px(item.x, scale)}
+                y={cm2px(item.y, scale)}
                 rotation={item.r}
                 listening={false}
             >
                 <Rect
-                    width={item.w * scale}
-                    height={item.h * scale}
+                    width={cm2px(item.w, scale)}
+                    height={cm2px(item.h, scale)}
                     fill={item.color}
                     stroke="#374151"
                     strokeWidth={1}
@@ -169,8 +166,8 @@ export function KonvaDiagramCanvas({
                 <Text
                     text={item.name}
                     x={0}
-                    y={item.h * scale / 2 - 8}
-                    width={item.w * scale}
+                    y={cm2px(item.h, scale) / 2 - 8}
+                    width={cm2px(item.w, scale)}
                     fontSize={10}
                     fill="white"
                     align="center"

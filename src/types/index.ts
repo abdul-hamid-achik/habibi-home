@@ -142,7 +142,7 @@ export const saveProjectDataSchema = z.object({
     apartmentWidth: z.number(),
     apartmentHeight: z.number(),
     scale: z.number(),
-    snapGrid: z.number(),
+    snap: z.number(),
     showGrid: z.boolean(),
     showDimensions: z.boolean(),
   }),

@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { UserButton } from "@stackframe/stack";
 import {
     Settings,
@@ -30,9 +29,11 @@ import {
     Pencil,
 } from "lucide-react";
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings, saveProjectDataSchema, zoneSchema, furnitureItemSchema } from "@/types";
-import { DEFAULT_APARTMENT_ZONES, DEFAULT_FURNITURE_LAYOUT, DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
+import { DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
+import { DEFAULT_APARTMENT_ZONES, DEFAULT_FURNITURE_LAYOUT } from "@/features/floor_plan/data/seeds";
 import { FloorPlanUploader } from "./floor-plan-uploader";
-import { FloatingSettingsPanel } from "./floating-settings-panel";
+import { FloatingSettingsPanel } from "@/features/floor_plan/editor/settings/floating_settings_panel";
+import { cm2px, px2cm, snapToGrid } from "@/features/floor_plan/utils/units";
 import { KonvaDiagramCanvas, DiagramShape } from "./konva-diagram-canvas";
 import Link from "next/link";
 
@@ -200,12 +201,10 @@ export function FloorPlanEditor({
         });
     }, []);
 
-    // Utility functions
-    const cm2px = (cm: number) => cm * settings.scale;
-    const px2cm = (px: number) => px / settings.scale;
-    const snapCm = (value: number) => {
-        return settings.snap ? Math.round(value / settings.snap) * settings.snap : value;
-    };
+    // Utility functions (using shared utils)
+    const toPx = (cm: number) => cm2px(cm, settings.scale);
+    const toCm = (px: number) => px2cm(px, settings.scale);
+    const snapCm = (value: number) => snapToGrid(value, settings.snap);
 
     // Actions
     const resetLayout = () => {
@@ -333,7 +332,7 @@ export function FloorPlanEditor({
                     apartmentWidth: settings.apartmentWidth,
                     apartmentHeight: settings.apartmentHeight,
                     scale: settings.scale,
-                    snapGrid: settings.snap,
+                    snap: settings.snap,
                     showGrid: settings.showGrid,
                     showDimensions: settings.showDimensions,
                 }
@@ -824,8 +823,8 @@ export function FloorPlanEditor({
                 <div className="flex-1 bg-gray-100 p-4 overflow-auto">
                     {editorMode === 'diagrams' ? (
                         <KonvaDiagramCanvas
-                            width={cm2px(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity))}
-                            height={cm2px(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity))}
+                            width={toPx(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity))}
+                            height={toPx(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity))}
                             scale={settings.scale}
                             showGrid={settings.showGrid}
                             zones={zones}
@@ -841,8 +840,8 @@ export function FloorPlanEditor({
                             <div
                                 className="relative border bg-white shadow-lg"
                                 style={{
-                                    width: cm2px(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity)),
-                                    height: cm2px(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity)),
+                                    width: toPx(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity)),
+                                    height: toPx(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity)),
                                     position: 'relative'
                                 }}
                             >
@@ -850,18 +849,18 @@ export function FloorPlanEditor({
                                 {settings.showGrid && (
                                     <svg
                                         className="absolute inset-0 pointer-events-none"
-                                        width={cm2px(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity))}
-                                        height={cm2px(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity))}
+                                        width={toPx(Math.min(settings.apartmentWidth, settings.maxCanvasWidth || Infinity))}
+                                        height={toPx(Math.min(settings.apartmentHeight, settings.maxCanvasHeight || Infinity))}
                                     >
                                         <defs>
                                             <pattern
                                                 id="grid"
-                                                width={cm2px(25)}
-                                                height={cm2px(25)}
+                                                width={toPx(25)}
+                                                height={toPx(25)}
                                                 patternUnits="userSpaceOnUse"
                                             >
                                                 <path
-                                                    d={`M ${cm2px(25)} 0 L 0 0 0 ${cm2px(25)}`}
+                                                    d={`M ${toPx(25)} 0 L 0 0 0 ${toPx(25)}`}
                                                     fill="none"
                                                     stroke="#e2e8f0"
                                                     strokeWidth="1"
@@ -884,10 +883,10 @@ export function FloorPlanEditor({
                                             : 'border-gray-300 bg-gray-100/30'
                                             }`}
                                         style={{
-                                            left: cm2px(zone.x),
-                                            top: cm2px(zone.y),
-                                            width: cm2px(zone.w),
-                                            height: cm2px(zone.h),
+                                            left: toPx(zone.x),
+                                            top: toPx(zone.y),
+                                            width: toPx(zone.w),
+                                            height: toPx(zone.h),
                                         }}
                                     >
                                         <div className="text-center text-xs text-gray-700 px-1">
@@ -909,10 +908,10 @@ export function FloorPlanEditor({
                                             : 'border-gray-800'
                                             }`}
                                         style={{
-                                            left: cm2px(item.x),
-                                            top: cm2px(item.y),
-                                            width: cm2px(item.w),
-                                            height: cm2px(item.h),
+                                            left: toPx(item.x),
+                                            top: toPx(item.y),
+                                            width: toPx(item.w),
+                                            height: toPx(item.h),
                                             backgroundColor: item.color,
                                             transform: `rotate(${item.r}deg)`,
                                             transformOrigin: 'center'

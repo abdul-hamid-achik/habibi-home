@@ -170,7 +170,7 @@ export async function POST(
                 apartmentWidth: settingsData.apartmentWidth,
                 apartmentHeight: settingsData.apartmentHeight,
                 scale: settingsData.scale,
-                snapGrid: settingsData.snapGrid,
+                snap: settingsData.snap,
                 showGrid: settingsData.showGrid,
                 showDimensions: settingsData.showDimensions,
             };
