@@ -3,6 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { HomeIcon, RulerIcon, PackageIcon, UsersIcon, CheckCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { UserButton } from "@stackframe/stack";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Habibi Home - Floor Planner for New Homeowners",
+  description: "Stop guessing, plan perfectly. Test furniture layouts before you buy and create rooms you'll love living in.",
+  icons: {
+    icon: '/favicon.ico',
+  },
+};
 
 export default function Home() {
   return (

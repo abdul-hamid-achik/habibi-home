@@ -78,12 +78,13 @@ export const updateProjectSchema = z.object({
 });
 
 export const zoneSchema = z.object({
+  id: z.string(),
   zoneId: z.string(),
   name: z.string(),
   x: z.number(),
   y: z.number(),
-  width: z.number(),
-  height: z.number(),
+  w: z.number(),
+  h: z.number(),
   color: z.string().optional(),
 });
 
@@ -91,9 +92,9 @@ export const furnitureItemSchema = z.object({
   name: z.string(),
   x: z.number(),
   y: z.number(),
-  width: z.number(),
-  height: z.number(),
-  rotation: z.number().default(0),
+  w: z.number(),
+  h: z.number(),
+  r: z.number().default(0),
   color: z.string(),
   catalogId: z.string().optional(),
   zoneId: z.string().optional(),

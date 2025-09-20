@@ -58,9 +58,10 @@ interface Zone {
   zoneId: string;
   x: number;
   y: number;
-  width: number;
-  height: number;
+  w: number;
+  h: number;
   type: string;
+  suggestedFurniture?: string[];
 }
 
 interface FloorPlanAnalysis {
@@ -79,9 +80,10 @@ const ZoneSchema = z.object({
   zoneId: z.string(),
   x: z.number(),
   y: z.number(),
-  width: z.number(),
-  height: z.number(),
+  w: z.number(),
+  h: z.number(),
   type: z.string(),
+  suggestedFurniture: z.array(z.string()).optional(),
 });
 
 const FloorPlanAnalysisSchema = z.object({
@@ -94,14 +96,11 @@ const FloorPlanAnalysisSchema = z.object({
   scale: z.number(),
 });
 
-// TODO: Consider multi-step analysis for better reliability:
+// Multi-step analysis for better reliability:
 // 1. Layout detection → basic room identification
 // 2. Dimension extraction → measurements and scale
 // 3. Zone refinement → precise coordinates
 // 4. Validation → final cleanup and validation
-//
-// Current single-prompt approach works for most cases but multi-step
-// would be more reliable for complex floor plans
 const createAnalysisPrompt = (totalArea?: number) => `
 You are an expert architectural floor plan analyzer. Focus on ACCURATE room identification and coordinate extraction.
 
@@ -111,6 +110,14 @@ ${totalArea ? `Total area provided: ${totalArea} m²` : 'Estimate total area if 
 
 PRIORITY: Identify rooms first, then coordinates. Be precise with percentages.
 
+IMPORTANT: The coordinate system should be:
+- 0,0 is the TOP-LEFT corner of the floor plan
+- x increases to the RIGHT
+- y increases DOWNWARD
+- Return coordinates as percentages (0-100) of the total floor plan dimensions
+- Ensure zones don't excessively overlap
+- Organize zones in a realistic layout
+
 If you see room labels, use them. Otherwise:
 - Largest central space → Living Room
 - Kitchen features (counters, appliances) → Kitchen
@@ -119,7 +126,7 @@ If you see room labels, use them. Otherwise:
 - Entry point → Entrance
 - Connecting areas → Hallway
 
-Return percentages (0-100) for coordinates and dimensions.
+For each zone, also specify appropriate furniture types that would typically go in that room.
 
 JSON format (respond with ONLY this JSON, no other text):
 {
@@ -136,7 +143,8 @@ JSON format (respond with ONLY this JSON, no other text):
       "y": 15,
       "width": 35,
       "height": 25,
-      "type": "living"
+      "type": "living",
+      "suggestedFurniture": ["sofa", "coffee table", "side table", "armchair"]
     },
     {
       "name": "Kitchen",
@@ -145,11 +153,114 @@ JSON format (respond with ONLY this JSON, no other text):
       "y": 15,
       "width": 25,
       "height": 20,
-      "type": "kitchen"
+      "type": "kitchen",
+      "suggestedFurniture": ["dining table", "stove", "refrigerator", "dishwasher"]
+    },
+    {
+      "name": "Bedroom",
+      "zoneId": "bedroom_1",
+      "x": 70,
+      "y": 15,
+      "width": 30,
+      "height": 40,
+      "type": "bedroom",
+      "suggestedFurniture": ["bed", "nightstand", "dresser", "wardrobe"]
     }
   ],
   "scale": 50
 }`;
+
+// Helper function to validate and optimize zone layout
+function validateAndOptimizeZones(zones: Zone[], canvasWidth: number, canvasHeight: number): Zone[] {
+  const optimizedZones: Zone[] = [];
+  const MIN_ZONE_SIZE = 50; // Minimum zone dimension in cm
+  const MIN_ZONE_AREA = 2500; // Minimum zone area in cm²
+  const OVERLAP_THRESHOLD = 0.3; // Maximum allowed overlap (30%)
+
+  zones.forEach((zone, index) => {
+    // Validate zone dimensions
+    let optimizedZone = { ...zone };
+
+    // Ensure minimum dimensions
+    if (zone.w < MIN_ZONE_SIZE) {
+      optimizedZone.w = MIN_ZONE_SIZE;
+    }
+    if (zone.h < MIN_ZONE_SIZE) {
+      optimizedZone.h = MIN_ZONE_SIZE;
+    }
+
+    // Ensure zones stay within canvas bounds
+    optimizedZone.x = Math.max(0, Math.min(canvasWidth - zone.w, zone.x));
+    optimizedZone.y = Math.max(0, Math.min(canvasHeight - zone.h, zone.y));
+
+    // Check for excessive overlap with existing zones
+    let hasExcessiveOverlap = false;
+    for (const existingZone of optimizedZones) {
+      const overlap = calculateZoneOverlap(optimizedZone, existingZone);
+      if (overlap > OVERLAP_THRESHOLD) {
+        hasExcessiveOverlap = true;
+        break;
+      }
+    }
+
+    // If no excessive overlap or this is the first zone, add it
+    if (!hasExcessiveOverlap || optimizedZones.length === 0) {
+      optimizedZones.push(optimizedZone);
+    } else {
+      // Try to reposition zone to reduce overlap
+      const repositionedZone = repositionZoneToReduceOverlap(optimizedZone, optimizedZones, canvasWidth, canvasHeight);
+      if (repositionedZone) {
+        optimizedZones.push(repositionedZone);
+      }
+    }
+  });
+
+  return optimizedZones;
+}
+
+// Calculate overlap between two zones (returns overlap ratio 0-1)
+function calculateZoneOverlap(zone1: Zone, zone2: Zone): number {
+  const xOverlap = Math.max(0, Math.min(zone1.x + zone1.w, zone2.x + zone2.w) - Math.max(zone1.x, zone2.x));
+  const yOverlap = Math.max(0, Math.min(zone1.y + zone1.h, zone2.y + zone2.h) - Math.max(zone1.y, zone2.y));
+  const overlapArea = xOverlap * yOverlap;
+  const zone1Area = zone1.w * zone1.h;
+
+  return overlapArea / zone1Area;
+}
+
+// Try to reposition a zone to reduce overlap
+function repositionZoneToReduceOverlap(zone: Zone, existingZones: Zone[], canvasWidth: number, canvasHeight: number): Zone | null {
+  const attempts = [
+    { x: zone.x + 50, y: zone.y },      // Right
+    { x: zone.x - 50, y: zone.y },      // Left
+    { x: zone.x, y: zone.y + 50 },      // Down
+    { x: zone.x, y: zone.y - 50 },      // Up
+    { x: zone.x + 30, y: zone.y + 30 }, // Diagonal
+    { x: zone.x - 30, y: zone.y - 30 }, // Diagonal opposite
+  ];
+
+  for (const attempt of attempts) {
+    const repositionedZone = {
+      ...zone,
+      x: Math.max(0, Math.min(canvasWidth - zone.w, attempt.x)),
+      y: Math.max(0, Math.min(canvasHeight - zone.h, attempt.y))
+    };
+
+    // Check if this new position has acceptable overlap
+    let maxOverlap = 0;
+    for (const existingZone of existingZones) {
+      const overlap = calculateZoneOverlap(repositionedZone, existingZone);
+      maxOverlap = Math.max(maxOverlap, overlap);
+    }
+
+    if (maxOverlap <= 0.2) { // Allow 20% overlap as acceptable
+      return repositionedZone;
+    }
+  }
+
+  // If no good position found, return null to skip this zone
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -307,19 +418,36 @@ export async function POST(request: NextRequest) {
 
     // Zod validation already ensures the structure is complete
 
-    // Convert percentage-based coordinates to absolute coordinates
-    // Assuming a standard floor plan size for the editor (similar to your original)
-    const EDITOR_WIDTH = 1050; // cm
-    const EDITOR_HEIGHT = 800; // cm
+    // Convert percentage-based coordinates to absolute coordinates based on analysis dimensions
+    // The analysis returns coordinates as percentages of the total floor plan dimensions
+    const FLOOR_PLAN_WIDTH_CM = Math.round(analysis.dimensions.width * 100); // Convert meters to cm
+    const FLOOR_PLAN_HEIGHT_CM = Math.round(analysis.dimensions.height * 100); // Convert meters to cm
+
+    // Validate that the converted dimensions make sense for the editor
+    const MIN_DIMENSION = 300; // cm
+    const MAX_DIMENSION = 2000; // cm
+
+    const editorWidth = Math.max(MIN_DIMENSION, Math.min(MAX_DIMENSION, FLOOR_PLAN_WIDTH_CM));
+    const editorHeight = Math.max(MIN_DIMENSION, Math.min(MAX_DIMENSION, FLOOR_PLAN_HEIGHT_CM));
 
     const convertedZones = analysis.zones.map(zone => ({
       ...zone,
-      // Convert percentages to absolute coordinates in cm
-      x: Math.round((zone.x / 100) * EDITOR_WIDTH),
-      y: Math.round((zone.y / 100) * EDITOR_HEIGHT),
-      w: Math.round((zone.width / 100) * EDITOR_WIDTH),
-      h: Math.round((zone.height / 100) * EDITOR_HEIGHT),
+      // Convert percentages to absolute coordinates in cm based on analysis dimensions
+      x: Math.round((zone.x / 100) * editorWidth),
+      y: Math.round((zone.y / 100) * editorHeight),
+      w: Math.round((zone.w / 100) * editorWidth),
+      h: Math.round((zone.h / 100) * editorHeight),
     }));
+
+    // Update analysis dimensions to match the editor dimensions
+    analysis.dimensions.width = editorWidth / 100; // Convert back to meters
+    analysis.dimensions.height = editorHeight / 100;
+
+    // Validate and optimize zone layout
+    const validatedZones = validateAndOptimizeZones(convertedZones, editorWidth, editorHeight);
+
+    // Replace converted zones with validated ones
+    convertedZones.splice(0, convertedZones.length, ...validatedZones);
 
     // Generate unique identifiers
     const shortId = generateShortId();

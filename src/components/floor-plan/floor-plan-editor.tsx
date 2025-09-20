@@ -24,7 +24,8 @@ import {
   Leaf,
   Search,
   X,
-  Keyboard
+  Keyboard,
+  Link
 } from "lucide-react";
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings, saveProjectDataSchema, zoneSchema, furnitureItemSchema } from "@/types";
 import { DEFAULT_APARTMENT_ZONES, DEFAULT_FURNITURE_LAYOUT, DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
@@ -81,20 +82,53 @@ export function FloorPlanEditor({
 
   const [furniture, setFurniture] = useState<FurnitureItemType[]>(() => {
     if (initialFurniture?.length) return initialFurniture;
-    return DEFAULT_FURNITURE_LAYOUT.map(item => {
-      const catalogItem = DEFAULT_FURNITURE_CATALOG.find(cat => cat.name === item.name);
-      return {
-        id: generateId(),
-        name: item.name,
-        x: item.x,
-        y: item.y,
-        w: catalogItem?.width || 100,
-        h: catalogItem?.height || 100,
-        r: item.r,
-        color: catalogItem?.color || "#666666",
-        zoneId: item.zoneId,
-      };
+
+    // Filter out furniture items with invalid zone IDs to prevent issues
+    const validFurniture = DEFAULT_FURNITURE_LAYOUT.filter(item => {
+      const validZones = DEFAULT_APARTMENT_ZONES.map(z => z.zoneId);
+      return validZones.includes(item.zoneId);
     });
+
+    if (validFurniture.length > 0) {
+      return validFurniture.map(item => {
+        const catalogItem = DEFAULT_FURNITURE_CATALOG.find(cat => cat.name === item.name);
+        return {
+          id: generateId(),
+          name: item.name,
+          x: item.x,
+          y: item.y,
+          w: catalogItem?.width || 100,
+          h: catalogItem?.height || 100,
+          r: item.r,
+          color: catalogItem?.color || "#666666",
+          zoneId: item.zoneId,
+        };
+      });
+    }
+
+    // If no valid furniture, create some default items for testing
+    return [
+      {
+        id: generateId(),
+        name: "large sofa",
+        x: 100,
+        y: 100,
+        w: 205,
+        h: 100,
+        r: 0,
+        color: "#2b5db9",
+      },
+      {
+        id: generateId(),
+        name: "coffee table",
+        x: 150,
+        y: 250,
+        w: 120,
+        h: 60,
+        r: 0,
+        color: "#8b6914",
+      }
+    ];
   });
 
   // Editor mode and selection
@@ -282,7 +316,7 @@ export function FloorPlanEditor({
     setSelectedFurnitureId(null);
   };
 
-  const rotateFurniture = (degrees: number) => {
+  const rotateFurniture = useCallback((degrees: number) => {
     if (!selectedFurniture) return;
     setFurniture(prev =>
       prev.map(f =>
@@ -291,7 +325,7 @@ export function FloorPlanEditor({
           : f
       )
     );
-  };
+  }, [selectedFurniture]);
 
   const handleSave = () => {
     if (onSave) {
@@ -322,7 +356,7 @@ export function FloorPlanEditor({
   };
 
   // Update furniture helper
-  const updateFurniture = (id: string, updates: Partial<FurnitureItemType>) => {
+  const updateFurniture = useCallback((id: string, updates: Partial<FurnitureItemType>) => {
     setFurniture(prev => {
       const updatedFurniture = prev.map(f => f.id === id ? { ...f, ...updates } : f);
 
@@ -337,7 +371,7 @@ export function FloorPlanEditor({
 
       return updatedFurniture;
     });
-  };
+  }, []);
 
   // Update zone helper
   const updateZone = (id: string, updates: Partial<FloorPlanZone>) => {
@@ -501,7 +535,7 @@ export function FloorPlanEditor({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-semibold">Habibi Floor Plan Editor</h1>
+          <h1 className="text-xl font-semibold"><Link href="/">Habibi Floor Plan Editor</Link></h1>
           <Button
             variant={editZones ? "default" : "outline"}
             size="sm"

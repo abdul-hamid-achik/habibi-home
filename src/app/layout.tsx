@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+'use client';
+
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -7,14 +8,6 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
-
-export const metadata: Metadata = {
-  title: "Habibi Home - Floor Planner for New Homeowners",
-  description: "Stop guessing, plan perfectly. Test furniture layouts before you buy and create rooms you'll love living in.",
-  icons: {
-    icon: '/favicon.ico',
-  },
-};
 
 export default function RootLayout({
   children,
