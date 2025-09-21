@@ -11,7 +11,7 @@ import { LibraryTab } from "./library_tab";
 import { LayersTab } from "./layers_tab";
 import { DiagramShape } from "../../canvas/tools/diagram_schemas";
 import { EditorMode } from "../../state/editor_store";
-import { analyzeFloorPlan } from "../../services/analysis";
+import { analyzeFloorPlan as analyzeFloorPlanService } from "../../services/analysis";
 
 interface EditorSidebarProps {
     // State
@@ -57,7 +57,7 @@ function AIImportPanel({ onAnalysisComplete }: { onAnalysisComplete: (analysis: 
         setIsAnalyzing(true);
         setError(null);
         try {
-            const result = await analyzeFloorPlan({ file });
+            const result = await analyzeFloorPlanService({ file });
             onAnalysisComplete(result);
         } catch (e) {
             console.error('AI analysis failed:', e);
@@ -118,8 +118,6 @@ export function EditorSidebar(props: EditorSidebarProps) {
         updateFurnitureCmd,
         deleteZone,
         updateSettings,
-        setSelectedDiagramId,
-        setDiagrams,
         setBgModalOpen,
         onUpdateDiagramShape,
         onDeleteDiagramShape,
@@ -202,16 +200,16 @@ export function EditorSidebar(props: EditorSidebarProps) {
                             currentDiagramTool={currentDiagramTool}
                             onToggleLayerVisibility={(layer) => {
                                 if (layer === 'grid') updateSettings({ showGrid: !settings.showGrid });
-                                if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), visible: !settings.background?.visible } } as any);
+                                if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), visible: !settings.background?.visible } } as FloorPlanSettings);
                                 if (layer === 'zones') updateSettings({ showZones: !settings.showZones });
                                 if (layer === 'furniture') updateSettings({ showFurniture: !settings.showFurniture });
                                 if (layer === 'diagrams') updateSettings({ showDiagrams: !settings.showDiagrams });
                             }}
                             onToggleLayerLock={(layer) => {
-                                if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), locked: !settings.background?.locked } } as any);
+                                if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), locked: !settings.background?.locked } } as FloorPlanSettings);
                             }}
                             onSetLayerOpacity={(layer, opacity) => {
-                                if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), opacity } } as any);
+                                if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), opacity } } as FloorPlanSettings);
                             }}
                             onMoveLayerUp={() => { }}
                             onMoveLayerDown={() => { }}
@@ -226,14 +224,5 @@ export function EditorSidebar(props: EditorSidebarProps) {
     );
 }
 
-// Helper function for AI analysis (extracted from editor_shell)
-async function analyzeFloorPlan({ file }: { file: File }) {
-    // This would normally call an API endpoint
-    // For now, we'll simulate the analysis
-    return {
-        dimensions: { width: 500, height: 400 },
-        zones: []
-    };
-}
 
 export type { EditorSidebarProps };

@@ -11,7 +11,7 @@ interface ActionsBarProps {
 }
 
 export function ActionsBar({
-    showKeyboardShortcuts,
+    showKeyboardShortcuts: _showKeyboardShortcuts,
     onToggleKeyboardShortcuts,
     onReset,
     onSave

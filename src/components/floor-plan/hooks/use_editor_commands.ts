@@ -12,17 +12,11 @@ import {
   UpdateZoneCommand,
   AddFurnitureCommand,
   RemoveFurnitureCommand,
-  UpdateFurnitureCommand,
-  BatchCommand
+  UpdateFurnitureCommand
 } from '../state/command_manager';
 import { useKeyboardShortcuts, ShortcutHandler } from '../state/shortcuts_store';
 
 interface UseEditorCommandsProps {
-  // State setters
-  setZones: React.Dispatch<React.SetStateAction<FloorPlanZone[]>>;
-  setFurniture: React.Dispatch<React.SetStateAction<FurnitureItemType[]>>;
-  setSettings: React.Dispatch<React.SetStateAction<FloorPlanSettings>>;
-
   // Current state for reference
   zones: FloorPlanZone[];
   furniture: FurnitureItemType[];
@@ -45,9 +39,6 @@ interface UseEditorCommandsProps {
 }
 
 export function useEditorCommands({
-  setZones,
-  setFurniture,
-  setSettings,
   zones,
   furniture,
   settings,

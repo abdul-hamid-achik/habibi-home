@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Upload, X, Image, ExternalLink, Maximize2 } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, ExternalLink, Maximize2 } from 'lucide-react';
 
 interface BackgroundSettings {
   url: string;
@@ -156,7 +157,7 @@ export function BackgroundImportModal({
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold flex items-center justify-between">
             <div className="flex items-center">
-              <Image className="w-5 h-5 mr-2" />
+              <ImageIcon className="w-5 h-5 mr-2" />
               Import Background
             </div>
             <Button
@@ -273,9 +274,11 @@ export function BackgroundImportModal({
                 )}
               </div>
               <div className="border rounded-lg p-2 bg-gray-50">
-                <img
+                <Image
                   src={imageUrl}
                   alt="Background preview"
+                  width={400}
+                  height={128}
                   className="w-full h-32 object-contain rounded"
                   style={{ opacity }}
                   onLoad={handleImageLoad}

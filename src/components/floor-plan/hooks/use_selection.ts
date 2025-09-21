@@ -53,7 +53,7 @@ export const useDiagramSelectionCompat = () => {
 };
 
 // Simplified event handlers hook (no-op implementation)
-export const useSelectionEventHandlers = (context: {
+export const useSelectionEventHandlers = (_context: {
   onZoneDelete?: (id: string) => void;
   onZoneDuplicate?: (id: string) => void;
   onFurnitureDelete?: (id: string) => void;

@@ -17,9 +17,7 @@ import {
   RotateCcw,
   RotateCw,
   Copy,
-  Trash2,
-  Package,
-  RefreshCw
+  Trash2
 } from 'lucide-react';
 import { FloorPlanZone, FurnitureItemType } from '@/types';
 import { getAllFurnitureLegacy } from '@/components/floor-plan/furniture';

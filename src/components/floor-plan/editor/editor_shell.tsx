@@ -14,7 +14,6 @@ import { KonvaStage } from "../canvas/konva_stage";
 import { useEditorStore, EditorMode } from "../state/editor_store";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { analyzeFloorPlan } from "../services/analysis";
 import { exportFloorPlan } from "../utils/export_utils";
 import { CommandManager, UpdateZoneCommand, UpdateFurnitureCommand, AddZoneCommand } from "../state/command_manager";
 import { duplicateShape } from "../canvas/tools/drawing_tools";
@@ -65,13 +64,11 @@ function EditorShell({
         setDiagramStrokeColor,
         setDiagramFillColor,
         setDiagramStrokeWidth,
-        setZones,
         setFurniture,
         setDiagrams,
         updateFurniture,
         updateZone,
         deleteZone,
-        addZone,
         updateSettings,
         resetToDefaults,
         loadData,
@@ -156,36 +153,6 @@ function EditorShell({
         commandManagerRef.current.clear();
     };
 
-    const handleAIAnalysis = (analysis: { dimensions?: { width: number; height: number }; zones?: Array<{ zoneId?: string; name: string; x: number; y: number; w: number; h: number }> }) => {
-        const dimensions = analysis.dimensions;
-        if (dimensions && dimensions.width && dimensions.height) {
-            updateSettings({
-                apartmentWidth: Math.round(dimensions.width * 100),
-                apartmentHeight: Math.round(dimensions.height * 100),
-                canvasMode: 'fit-to-screen',
-                scale: 0.8,
-            });
-        }
-
-        if (analysis.zones && analysis.zones.length > 0) {
-            const importedZones = analysis.zones.map((zone) => ({
-                id: generateId(),
-                zoneId: zone.zoneId || zone.name.toLowerCase().replace(/\s+/g, '_'),
-                name: zone.name,
-                x: zone.x,
-                y: zone.y,
-                w: zone.w,
-                h: zone.h,
-                color: undefined,
-            }));
-
-            loadData({ zones: importedZones, furniture: [] });
-        }
-
-        setSelectedZoneId(null);
-        setSelectedFurnitureId(null);
-        setShowAIImport(false);
-    };
 
     const addFurnitureFromCatalog = (catalogName: string) => {
         const catalogItem = DEFAULT_FURNITURE_CATALOG.find(cat => cat.name === catalogName);
@@ -525,7 +492,7 @@ function EditorShell({
                         }}
                         onDiagramUpdate={(id, updates) => {
                             const newDiagrams = diagrams.map(d => d.id === id ? { ...d, ...updates } : d);
-                            setDiagrams(newDiagrams);
+                            setDiagrams(newDiagrams as DiagramShape[]);
                         }}
                         onDiagramDelete={(id) => {
                             const newDiagrams = diagrams.filter(d => d.id !== id);

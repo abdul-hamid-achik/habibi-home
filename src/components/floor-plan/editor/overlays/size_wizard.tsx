@@ -23,14 +23,14 @@ export function SizeWizard({
   currentHeight,
   onSizeChange
 }: SizeWizardProps) {
-  
+
   const [mode, setMode] = useState<'area' | 'dimensions'>('area');
   const [area, setArea] = useState<number>(Math.round((currentWidth * currentHeight) / 10000)); // m²
   const [aspectRatio, setAspectRatio] = useState<number>(currentWidth / currentHeight);
   const [customWidth, setCustomWidth] = useState<number>(Math.round(currentWidth / 100)); // m
   const [customHeight, setCustomHeight] = useState<number>(Math.round(currentHeight / 100)); // m
   const [scale, setScale] = useState<number>(0.9);
-  
+
   // Calculate dimensions from area and aspect ratio
   const calculateFromArea = () => {
     const widthM = Math.sqrt(area * aspectRatio);
@@ -40,12 +40,12 @@ export function SizeWizard({
       height: Math.round(heightM * 100) // convert to cm
     };
   };
-  
+
   // Calculate area from custom dimensions
   const calculateAreaFromDimensions = () => {
     return Math.round((customWidth * customHeight) * 100) / 100; // m²
   };
-  
+
   // Get final dimensions based on mode
   const getFinalDimensions = () => {
     if (mode === 'area') {
@@ -57,17 +57,17 @@ export function SizeWizard({
       };
     }
   };
-  
+
   const finalDimensions = getFinalDimensions();
   const finalArea = (finalDimensions.width * finalDimensions.height) / 10000; // m²
-  
+
   // Update area when custom dimensions change
   useEffect(() => {
     if (mode === 'dimensions') {
       setArea(calculateAreaFromDimensions());
     }
-  }, [customWidth, customHeight, mode]);
-  
+  }, [customWidth, customHeight, mode, calculateAreaFromDimensions]);
+
   // Preset sizes
   const presets = [
     { name: "Studio", area: 25, aspect: 1.2 },
@@ -76,14 +76,14 @@ export function SizeWizard({
     { name: "3 Bedroom", area: 95, aspect: 1.5 },
     { name: "4 Bedroom", area: 120, aspect: 1.6 }
   ];
-  
+
   const handleApply = () => {
     onSizeChange(finalDimensions.width, finalDimensions.height, scale);
     onClose();
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <Card className="w-96 max-h-[80vh] overflow-y-auto">
@@ -104,7 +104,7 @@ export function SizeWizard({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          
+
           {/* Mode Selection */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Input Method</Label>
@@ -127,7 +127,7 @@ export function SizeWizard({
               </Button>
             </div>
           </div>
-          
+
           {/* Presets */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Quick Presets</Label>
@@ -149,7 +149,7 @@ export function SizeWizard({
               ))}
             </div>
           </div>
-          
+
           {mode === 'area' ? (
             /* Area Mode */
             <div className="space-y-4">
@@ -176,7 +176,7 @@ export function SizeWizard({
                   className="mt-2"
                 />
               </div>
-              
+
               <div>
                 <Label className="text-sm font-medium">Aspect Ratio</Label>
                 <div className="flex items-center space-x-2 mt-1">
@@ -239,7 +239,7 @@ export function SizeWizard({
               </div>
             </div>
           )}
-          
+
           {/* Scale */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Display Scale</Label>
@@ -260,7 +260,7 @@ export function SizeWizard({
               <span>Larger</span>
             </div>
           </div>
-          
+
           {/* Preview */}
           <div className="space-y-3 p-3 bg-gray-50 rounded">
             <div className="flex items-center">
@@ -286,7 +286,7 @@ export function SizeWizard({
               </div>
             </div>
           </div>
-          
+
           {/* Actions */}
           <div className="flex space-x-2">
             <Button variant="outline" onClick={onClose} className="flex-1">

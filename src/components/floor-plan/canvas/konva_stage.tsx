@@ -3,16 +3,15 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import Konva from 'konva';
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from '@/types';
+import { DiagramShape, DrawingTool } from './tools/diagram_schemas';
 import { GridLayer } from './layers/grid_layer';
 import { ZonesLayer } from './layers/zones_layer';
 import { FurnitureLayer } from './layers/furniture_layer';
 import { DiagramLayer } from './layers/diagram_layer';
 import { BackgroundLayer } from './layers/background_layer';
 import { SelectionOverlay } from './layers/selection_overlay';
-import { DrawingState } from './tools/drawing_tools';
 import {
   calculateCanvasSize,
-  calculateCenterOffset,
   getCanvasModeClasses,
   requiresViewport,
   getEffectiveScale,
@@ -158,10 +157,6 @@ export function KonvaStage({
     return getEffectiveScale(settings, canvasSize);
   }, [settings, canvasSize]);
 
-  // Calculate center offset for centered mode - removed as we'll use flexbox centering instead
-  const centerOffset = useMemo(() => {
-    return { x: 0, y: 0 };
-  }, []);
 
   // Updated settings with effective scale for layers
   const effectiveSettings = useMemo(() => ({
@@ -184,14 +179,6 @@ export function KonvaStage({
     return getCanvasModeClasses(settings.canvasMode);
   }, [settings.canvasMode]);
 
-  // Handle stage click for deselection
-  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // If clicking on empty space, deselect all
-    if (e.target === stageRef.current) {
-      onZoneSelect(null);
-      onFurnitureSelect(null);
-    }
-  };
 
   // Render based on editor mode
   const renderContent = () => {
@@ -231,7 +218,7 @@ export function KonvaStage({
             onExport={onDiagramExport}
             onDiagramSelect={onDiagramSelect}
             shapes={diagrams}
-            selectedDiagramId={selectedDiagramId}
+            selectedDiagramId={selectedDiagramId ?? null}
             drawingState={{
               tool: diagramTool,
               isDrawing: false,
@@ -240,9 +227,9 @@ export function KonvaStage({
               fillColor: diagramFillColor,
               strokeWidth: diagramStrokeWidth,
             }}
-            onShapeAdd={onDiagramAdd}
-            onShapeUpdate={onDiagramUpdate}
-            onShapeDelete={onDiagramDelete}
+            onShapeAdd={onDiagramAdd ?? (() => { })}
+            onShapeUpdate={onDiagramUpdate ?? (() => { })}
+            onShapeDelete={onDiagramDelete ?? (() => { })}
             className="absolute inset-0"
           />
         )}

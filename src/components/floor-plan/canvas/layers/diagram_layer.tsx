@@ -1,38 +1,19 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from 'react';
-import { useDiagramSelectionCompat, useSelectionEventHandlers } from '../../hooks/use_selection';
+import React, { useRef, useEffect } from 'react';
+import { useSelectionEventHandlers } from '../../hooks/use_selection';
 import { Stage, Layer, Rect, Circle, Line, Text, Transformer } from 'react-konva';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import {
-  Square,
-  Circle as CircleIcon,
-  Minus,
-  Edit3,
-  MousePointer,
-  Download,
-  Trash2,
-  Copy,
-} from 'lucide-react';
 import Konva from 'konva';
 import { KonvaEventObject } from 'konva/lib/Node';
 import { FloorPlanSettings } from '@/types';
 import {
-  DrawingTool,
   DiagramShape,
-  DiagramExport,
-  diagram_export_schema,
 } from '../tools/diagram_schemas';
 import {
   DrawingToolManager,
   DrawingState,
   DrawingCallbacks,
-  DRAWING_COLORS,
   duplicateShape,
-  deleteShape,
 } from '../tools/drawing_tools';
 
 interface DiagramLayerProps {
@@ -58,9 +39,7 @@ interface DiagramLayerProps {
 export function DiagramLayer({
   width,
   height,
-  settings,
   editorMode,
-  onExport,
   onDiagramSelect,
   className,
   shapes,
@@ -87,21 +66,21 @@ export function DiagramLayer({
   const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
     if (editorMode !== 'diagrams') return;
 
-    const updates = toolManager.handleMouseDown(e, drawingState, callbacks);
+    toolManager.handleMouseDown(e, drawingState, callbacks);
     // The drawing state is managed by the parent component/store
   };
 
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
     if (editorMode !== 'diagrams') return;
 
-    const updates = toolManager.handleMouseMove(e, drawingState, callbacks, shapes);
+    toolManager.handleMouseMove(e, drawingState, callbacks, shapes);
     // The drawing state is managed by the parent component/store
   };
 
   const handleMouseUp = () => {
     if (editorMode !== 'diagrams') return;
 
-    const updates = toolManager.handleMouseUp();
+    toolManager.handleMouseUp();
     // The drawing state is managed by the parent component/store
   };
 
@@ -151,75 +130,6 @@ export function DiagramLayer({
     callbacks.onShapeUpdate(shapeId, updates);
   };
 
-  const deleteSelected = () => {
-    if (selectedDiagramId) {
-      callbacks.onShapeDelete(selectedDiagramId);
-    }
-  };
-
-  const duplicateSelected = () => {
-    if (!selectedDiagramId) return;
-
-    const selectedShape = shapes.find(s => s.id === selectedDiagramId);
-    if (selectedShape) {
-      const newShape = duplicateShape(selectedShape);
-      callbacks.onShapeAdd(newShape);
-    }
-  };
-
-  const exportToPNG = () => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const dataURL = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
-    if (onExport) {
-      onExport(dataURL, 'png');
-    } else {
-      // Default download behavior
-      const link = document.createElement('a');
-      link.download = 'diagram.png';
-      link.href = dataURL;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
-
-  const exportToJSON = () => {
-    const exportData: DiagramExport = {
-      shapes,
-      metadata: {
-        exportedAt: new Date().toISOString(),
-        canvasWidth: width,
-        canvasHeight: height,
-        scale: settings.scale,
-        version: '1.0',
-      },
-    };
-
-    // Validate the export data
-    try {
-      const validatedData = diagram_export_schema.parse(exportData);
-      const jsonString = JSON.stringify(validatedData, null, 2);
-
-      if (onExport) {
-        onExport(jsonString, 'json');
-      } else {
-        // Default download behavior
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = 'diagram.json';
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }
-    } catch (error) {
-      console.error('Failed to validate diagram export:', error);
-    }
-  };
 
   // Register event handlers for unified selection system
   useSelectionEventHandlers({

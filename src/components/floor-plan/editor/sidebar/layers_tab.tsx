@@ -6,8 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import {
   Layers,
-  Eye,
-  EyeOff,
   Settings,
   Sofa,
   Package,

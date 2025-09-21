@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { FloorPlanZone, FurnitureItemType } from '@/types';
 
 interface ZoneAssignmentOverlayProps {
@@ -8,15 +8,15 @@ interface ZoneAssignmentOverlayProps {
   width: number;
   height: number;
   scale: number;
-  
+
   // Data
   zones: FloorPlanZone[];
-  
+
   // Drag state
   isDragging: boolean;
   draggedFurniture: FurnitureItemType | null;
   dragPosition: { x: number; y: number } | null;
-  
+
   // Feedback
   highlightedZoneId: string | null;
 }
@@ -31,41 +31,41 @@ export function ZoneAssignmentOverlay({
   dragPosition,
   highlightedZoneId
 }: ZoneAssignmentOverlayProps) {
-  
+
   // Convert cm to pixels
-  const cm2px = (cm: number) => cm * scale;
-  
+  const cm2px = useCallback((cm: number) => cm * scale, [scale]);
+
   // Calculate which zone contains the current drag position
   const getZoneAtPosition = (x: number, y: number) => {
     if (!draggedFurniture || !dragPosition) return null;
-    
+
     // Convert screen coordinates to cm
     const furnitureCenterX = x / scale;
     const furnitureCenterY = y / scale;
-    
+
     return zones.find(zone => {
-      return furnitureCenterX >= zone.x && 
-             furnitureCenterX <= zone.x + zone.w &&
-             furnitureCenterY >= zone.y && 
-             furnitureCenterY <= zone.y + zone.h;
+      return furnitureCenterX >= zone.x &&
+        furnitureCenterX <= zone.x + zone.w &&
+        furnitureCenterY >= zone.y &&
+        furnitureCenterY <= zone.y + zone.h;
     });
   };
-  
+
   const hoveredZone = dragPosition ? getZoneAtPosition(dragPosition.x, dragPosition.y) : null;
-  
+
   // Memoize zone overlays to prevent unnecessary re-renders
   const zoneOverlays = useMemo(() => {
     if (!isDragging || !draggedFurniture) return [];
-    
+
     return zones.map(zone => {
       const isHovered = hoveredZone?.id === zone.id;
       const isHighlighted = highlightedZoneId === zone.id;
       const isCurrentZone = draggedFurniture.zoneId === zone.id;
-      
+
       let overlayStyle = {};
       let borderStyle = {};
       let textStyle = {};
-      
+
       if (isHovered) {
         // Zone being hovered during drag
         overlayStyle = {
@@ -119,7 +119,7 @@ export function ZoneAssignmentOverlay({
           borderRadius: '4px'
         };
       }
-      
+
       return (
         <div
           key={zone.id}
@@ -143,7 +143,7 @@ export function ZoneAssignmentOverlay({
             {isHovered && ' ✓'}
             {isCurrentZone && !isHovered && ' (current)'}
           </div>
-          
+
           {/* Drop hint for hovered zone */}
           {isHovered && (
             <div className="absolute bottom-1 right-1 text-xs text-green-700 bg-white bg-opacity-90 px-2 py-1 rounded shadow-sm">
@@ -154,11 +154,11 @@ export function ZoneAssignmentOverlay({
       );
     });
   }, [zones, isDragging, draggedFurniture, hoveredZone, highlightedZoneId, cm2px]);
-  
+
   // Drag preview for the furniture being moved
   const dragPreview = useMemo(() => {
     if (!isDragging || !draggedFurniture || !dragPosition) return null;
-    
+
     return (
       <div
         className="absolute pointer-events-none transition-transform duration-75"
@@ -183,22 +183,22 @@ export function ZoneAssignmentOverlay({
       </div>
     );
   }, [isDragging, draggedFurniture, dragPosition, cm2px]);
-  
+
   if (!isDragging || !draggedFurniture) {
     return null;
   }
-  
+
   return (
-    <div 
+    <div
       className="absolute inset-0 pointer-events-none"
       style={{ width, height }}
     >
       {/* Zone overlays */}
       {zoneOverlays}
-      
+
       {/* Drag preview */}
       {dragPreview}
-      
+
       {/* Assignment instructions */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-95 px-4 py-2 rounded-lg shadow-lg border z-40">
         <div className="text-sm font-medium text-gray-800">

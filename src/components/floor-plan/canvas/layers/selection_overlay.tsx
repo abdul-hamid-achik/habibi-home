@@ -10,21 +10,21 @@ interface SelectionOverlayProps {
   width: number;
   height: number;
   scale: number;
-  
+
   // Selection state
   selectedFurniture: FurnitureItemType | null;
   selectedZone: FloorPlanZone | null;
   editorMode: 'zones' | 'furniture' | 'diagrams';
-  
+
   // Callbacks
   onFurnitureUpdate: (id: string, updates: Partial<FurnitureItemType>) => void;
   onZoneUpdate: (id: string, updates: Partial<FloorPlanZone>) => void;
   onRotationChange: (rotation: number) => void;
-  
+
   // Snap settings
   snapEnabled: boolean;
   snapGrid: number;
-  
+
   // Constraints
   constrainToCanvas?: boolean;
 }
@@ -43,35 +43,35 @@ export function SelectionOverlay({
   snapGrid,
   constrainToCanvas = true
 }: SelectionOverlayProps) {
-  
+
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const selectionRectRef = useRef<Konva.Rect>(null);
-  
-  const [isDragging, setIsDragging] = useState(false);
-  const [isTransforming, setIsTransforming] = useState(false);
-  
+
+  const [_isDragging, setIsDragging] = useState(false);
+  const [_isTransforming, setIsTransforming] = useState(false);
+
   // Convert cm to pixels
   const cm2px = (cm: number) => cm * scale;
   const px2cm = (px: number) => px / scale;
-  
+
   // Snap to grid helper
   const snapToGrid = (value: number) => {
     if (!snapEnabled || snapGrid <= 0) return value;
     const snappedCm = Math.round(px2cm(value) / snapGrid) * snapGrid;
     return cm2px(snappedCm);
   };
-  
+
   // Apply constraints
   const applyConstraints = (x: number, y: number, w: number, h: number) => {
     if (!constrainToCanvas) return { x, y, w, h };
-    
+
     // Constrain to canvas bounds
     const minX = 0;
     const minY = 0;
     const maxX = width - w;
     const maxY = height - h;
-    
+
     return {
       x: Math.max(minX, Math.min(maxX, x)),
       y: Math.max(minY, Math.min(maxY, y)),
@@ -79,14 +79,14 @@ export function SelectionOverlay({
       h: Math.max(10, Math.min(height - y, h))
     };
   };
-  
+
   // Update transformer when selection changes
   useEffect(() => {
     const transformer = transformerRef.current;
     const selectionRect = selectionRectRef.current;
-    
+
     if (!transformer || !selectionRect) return;
-    
+
     if ((selectedFurniture && editorMode === 'furniture') || (selectedZone && editorMode === 'zones')) {
       transformer.nodes([selectionRect]);
       transformer.getLayer()?.batchDraw();
@@ -95,52 +95,49 @@ export function SelectionOverlay({
       transformer.getLayer()?.batchDraw();
     }
   }, [selectedFurniture, selectedZone, editorMode]);
-  
+
   // Handle transform events
   const handleTransformStart = () => {
     setIsTransforming(true);
   };
-  
+
   const handleTransform = () => {
     const selectionRect = selectionRectRef.current;
     const transformer = transformerRef.current;
-    
+
     if (!selectionRect || !transformer) return;
-    
+
     const node = selectionRect;
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
-    
+
     // Calculate new dimensions
     let newWidth = Math.max(5, node.width() * scaleX);
     let newHeight = Math.max(5, node.height() * scaleY);
-    
+
     // Apply snapping to size
     if (snapEnabled) {
       newWidth = cm2px(Math.round(px2cm(newWidth) / snapGrid) * snapGrid);
       newHeight = cm2px(Math.round(px2cm(newHeight) / snapGrid) * snapGrid);
     }
-    
+
     // Reset scale and apply new dimensions
     node.scaleX(1);
     node.scaleY(1);
     node.width(newWidth);
     node.height(newHeight);
-    
+
     // Update position with snapping
     let newX = node.x();
     let newY = node.y();
-    
+
     if (snapEnabled) {
       newX = snapToGrid(newX);
       newY = snapToGrid(newY);
       node.x(newX);
       node.y(newY);
     }
-    
-    // Get rotation
-    const rotation = node.rotation();
-    
+
     // Apply constraints
     const constrained = applyConstraints(newX, newY, newWidth, newHeight);
     node.x(constrained.x);
@@ -148,19 +145,19 @@ export function SelectionOverlay({
     node.width(constrained.w);
     node.height(constrained.h);
   };
-  
+
   const handleTransformEnd = () => {
     setIsTransforming(false);
-    
+
     const selectionRect = selectionRectRef.current;
     if (!selectionRect) return;
-    
+
     const newX = px2cm(selectionRect.x());
     const newY = px2cm(selectionRect.y());
     const newW = px2cm(selectionRect.width());
     const newH = px2cm(selectionRect.height());
     const newR = selectionRect.rotation();
-    
+
     // Update the selected item
     if (selectedFurniture && editorMode === 'furniture') {
       onFurnitureUpdate(selectedFurniture.id, {
@@ -180,19 +177,19 @@ export function SelectionOverlay({
       });
     }
   };
-  
+
   // Handle drag events
   const handleDragStart = () => {
     setIsDragging(true);
   };
-  
+
   const handleDragMove = () => {
     const selectionRect = selectionRectRef.current;
     if (!selectionRect) return;
-    
+
     let newX = selectionRect.x();
     let newY = selectionRect.y();
-    
+
     // Apply snapping
     if (snapEnabled) {
       newX = snapToGrid(newX);
@@ -200,27 +197,27 @@ export function SelectionOverlay({
       selectionRect.x(newX);
       selectionRect.y(newY);
     }
-    
+
     // Apply constraints
     const constrained = applyConstraints(
-      newX, 
-      newY, 
-      selectionRect.width(), 
+      newX,
+      newY,
+      selectionRect.width(),
       selectionRect.height()
     );
     selectionRect.x(constrained.x);
     selectionRect.y(constrained.y);
   };
-  
+
   const handleDragEnd = () => {
     setIsDragging(false);
-    
+
     const selectionRect = selectionRectRef.current;
     if (!selectionRect) return;
-    
+
     const newX = px2cm(selectionRect.x());
     const newY = px2cm(selectionRect.y());
-    
+
     // Update the selected item
     if (selectedFurniture && editorMode === 'furniture') {
       onFurnitureUpdate(selectedFurniture.id, {
@@ -234,7 +231,7 @@ export function SelectionOverlay({
       });
     }
   };
-  
+
   // Get current selection for rendering
   const getSelectionProps = () => {
     if (selectedFurniture && editorMode === 'furniture') {
@@ -264,13 +261,13 @@ export function SelectionOverlay({
     }
     return null;
   };
-  
+
   const selectionProps = getSelectionProps();
-  
+
   if (!selectionProps) {
     return null;
   }
-  
+
   return (
     <div className="absolute inset-0 pointer-events-auto">
       <Stage
@@ -293,14 +290,14 @@ export function SelectionOverlay({
               onTransform={handleTransform}
               onTransformEnd={handleTransformEnd}
             />
-            
+
             {/* Transformer with rotation handle */}
             <Transformer
               ref={transformerRef}
               rotateAnchorOffset={20}
               enabledAnchors={[
                 'top-left',
-                'top-right', 
+                'top-right',
                 'bottom-left',
                 'bottom-right',
                 'top-center',
