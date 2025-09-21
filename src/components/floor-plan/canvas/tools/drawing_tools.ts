@@ -98,7 +98,7 @@ export class DrawingToolManager {
 
       case 'line':
         callbacks.onShapeUpdate(currentShape.id, {
-          points: [0, 0, point.x - currentShape.x, point.y - currentShape.y],
+          points: [currentShape.x, currentShape.y, point.x, point.y],
         });
         break;
 
@@ -145,10 +145,12 @@ export class DrawingToolManager {
         return createCircleShape(id, x, y, 1, options);
 
       case 'line':
-        return createLineShape(id, [0, 0, 0, 0], options);
+        // Create a line with minimum valid points (will be updated as user drags)
+        return createLineShape(id, [x, y, x + 1, y + 1], options);
 
       case 'freehand':
-        return createFreehandShape(id, x, y, [0, 0], options);
+        // Create freehand with minimum valid points (will be updated as user draws)
+        return createFreehandShape(id, x, y, [0, 0, 1, 1], options);
 
       case 'text':
         const text = prompt('Enter text:') || 'Text';

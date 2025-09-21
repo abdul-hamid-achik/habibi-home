@@ -9,6 +9,7 @@ import { FurnitureLayer } from './layers/furniture_layer';
 import { DiagramLayer } from './layers/diagram_layer';
 import { BackgroundLayer } from './layers/background_layer';
 import { SelectionOverlay } from './layers/selection_overlay';
+import { DrawingState } from './tools/drawing_tools';
 import {
   calculateCanvasSize,
   calculateCenterOffset,
@@ -30,6 +31,14 @@ interface KonvaStageProps {
   selectedZoneId: string | null;
   selectedFurnitureId: string | null;
 
+  // Diagram state
+  diagrams?: DiagramShape[];
+  selectedDiagramId?: string | null;
+  diagramTool?: DrawingTool;
+  diagramStrokeColor?: string;
+  diagramFillColor?: string;
+  diagramStrokeWidth?: number;
+
   // Event handlers
   onZoneSelect: (id: string | null) => void;
   onZoneUpdate?: (id: string, updates: Partial<FloorPlanZone>) => void;
@@ -37,6 +46,9 @@ interface KonvaStageProps {
   onDiagramSelect?: (id: string | null) => void;
   onFurnitureUpdate: (id: string, updates: Partial<FurnitureItemType>) => void;
   onDiagramExport?: (dataUrl: string, format: 'png' | 'json') => void;
+  onDiagramAdd?: (shape: DiagramShape) => void;
+  onDiagramUpdate?: (id: string, updates: Partial<DiagramShape>) => void;
+  onDiagramDelete?: (id: string) => void;
   onBackgroundUpdate?: (updates: {
     opacity?: number;
     scale?: number;
@@ -63,12 +75,21 @@ export function KonvaStage({
   editorMode,
   selectedZoneId,
   selectedFurnitureId,
+  diagrams = [],
+  selectedDiagramId,
+  diagramTool = 'select',
+  diagramStrokeColor = '#000000',
+  diagramFillColor = 'transparent',
+  diagramStrokeWidth = 2,
   onZoneSelect,
   onZoneUpdate,
   onFurnitureSelect,
   onDiagramSelect,
   onFurnitureUpdate,
   onDiagramExport,
+  onDiagramAdd,
+  onDiagramUpdate,
+  onDiagramDelete,
   onBackgroundUpdate,
   className,
   containerRef,
@@ -174,19 +195,6 @@ export function KonvaStage({
 
   // Render based on editor mode
   const renderContent = () => {
-    if (editorMode === 'diagrams' && showDiagrams) {
-      return (
-        <DiagramLayer
-          width={canvasSize.width}
-          height={canvasSize.height}
-          settings={effectiveSettings}
-          editorMode={editorMode}
-          onExport={onDiagramExport}
-          className="w-full h-full"
-        />
-      );
-    }
-
     return (
       <div
         className={containerClasses}
@@ -212,6 +220,32 @@ export function KonvaStage({
           width={canvasSize.width}
           height={canvasSize.height}
         />
+
+        {/* Diagram Layer (only in diagrams mode) */}
+        {editorMode === 'diagrams' && showDiagrams && (
+          <DiagramLayer
+            width={canvasSize.width}
+            height={canvasSize.height}
+            settings={effectiveSettings}
+            editorMode={editorMode}
+            onExport={onDiagramExport}
+            onDiagramSelect={onDiagramSelect}
+            shapes={diagrams}
+            selectedDiagramId={selectedDiagramId}
+            drawingState={{
+              tool: diagramTool,
+              isDrawing: false,
+              currentPath: [],
+              strokeColor: diagramStrokeColor,
+              fillColor: diagramFillColor,
+              strokeWidth: diagramStrokeWidth,
+            }}
+            onShapeAdd={onDiagramAdd}
+            onShapeUpdate={onDiagramUpdate}
+            onShapeDelete={onDiagramDelete}
+            className="absolute inset-0"
+          />
+        )}
 
         {/* Konva Furniture Layer */}
         {showFurniture && (

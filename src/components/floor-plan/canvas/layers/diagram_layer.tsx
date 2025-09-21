@@ -43,6 +43,16 @@ interface DiagramLayerProps {
   onExport?: (dataUrl: string, format: 'png' | 'json') => void;
   onDiagramSelect?: (id: string | null) => void;
   className?: string;
+  // Diagram shapes from store
+  shapes: DiagramShape[];
+  // Selection state
+  selectedDiagramId: string | null;
+  // Drawing state from store
+  drawingState: DrawingState;
+  // Callbacks for diagram operations
+  onShapeAdd: (shape: DiagramShape) => void;
+  onShapeUpdate: (id: string, updates: Partial<DiagramShape>) => void;
+  onShapeDelete: (id: string) => void;
 }
 
 export function DiagramLayer({
@@ -52,42 +62,25 @@ export function DiagramLayer({
   editorMode,
   onExport,
   onDiagramSelect,
-  className
+  className,
+  shapes,
+  selectedDiagramId,
+  drawingState,
+  onShapeAdd,
+  onShapeUpdate,
+  onShapeDelete
 }: DiagramLayerProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const layerRef = useRef<Konva.Layer>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const toolManager = useRef(new DrawingToolManager()).current;
 
-  const [drawingState, setDrawingState] = useState<DrawingState>({
-    tool: 'select',
-    isDrawing: false,
-    currentPath: [],
-    strokeColor: '#000000',
-    fillColor: 'transparent',
-    strokeWidth: 2,
-  });
-
-  const [shapes, setShapes] = useState<DiagramShape[]>([]);
-
-  // Use unified selection system
-  const { selectedDiagramId, setSelectedDiagramId } = useDiagramSelectionCompat();
+  // Use the provided drawing state from the store
 
   const callbacks: DrawingCallbacks = {
-    onShapeAdd: (shape) => {
-      setShapes(prev => [...prev, shape]);
-    },
-    onShapeUpdate: (id, updates) => {
-      setShapes(prev =>
-        prev.map(shape => (shape.id === id ? { ...shape, ...updates } as DiagramShape : shape))
-      );
-    },
-    onShapeDelete: (id) => {
-      setShapes(prev => deleteShape(prev, id));
-      if (selectedDiagramId === id) {
-        setSelectedDiagramId(null);
-      }
-    },
+    onShapeAdd: onShapeAdd,
+    onShapeUpdate: onShapeUpdate,
+    onShapeDelete: onShapeDelete,
   };
 
   // Handle mouse events
@@ -95,28 +88,27 @@ export function DiagramLayer({
     if (editorMode !== 'diagrams') return;
 
     const updates = toolManager.handleMouseDown(e, drawingState, callbacks);
-    setDrawingState(prev => ({ ...prev, ...updates }));
+    // The drawing state is managed by the parent component/store
   };
 
   const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
     if (editorMode !== 'diagrams') return;
 
     const updates = toolManager.handleMouseMove(e, drawingState, callbacks, shapes);
-    setDrawingState(prev => ({ ...prev, ...updates }));
+    // The drawing state is managed by the parent component/store
   };
 
   const handleMouseUp = () => {
     if (editorMode !== 'diagrams') return;
 
     const updates = toolManager.handleMouseUp();
-    setDrawingState(prev => ({ ...prev, ...updates }));
+    // The drawing state is managed by the parent component/store
   };
 
   const handleShapeClick = (e: KonvaEventObject<MouseEvent>, shapeId: string) => {
     if (editorMode !== 'diagrams' || drawingState.tool !== 'select') return;
 
     e.cancelBubble = true;
-    setSelectedDiagramId(shapeId);
     onDiagramSelect?.(shapeId);
 
     const node = e.target;
@@ -172,7 +164,6 @@ export function DiagramLayer({
     if (selectedShape) {
       const newShape = duplicateShape(selectedShape);
       callbacks.onShapeAdd(newShape);
-      setSelectedDiagramId(newShape.id);
     }
   };
 
@@ -335,160 +326,31 @@ export function DiagramLayer({
     return null;
   }
 
+  // Only render the canvas layer, tools are now handled by the main editor
   return (
-    <div className={`flex ${className || ''}`}>
-      {/* Tools Panel */}
-      <Card className="w-64 mr-4 h-fit">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Drawing Tools</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Tool Selection */}
-          <div>
-            <h4 className="text-sm font-medium mb-2">Tools</h4>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { tool: 'select' as DrawingTool, icon: MousePointer, label: 'Select' },
-                { tool: 'rectangle' as DrawingTool, icon: Square, label: 'Rectangle' },
-                { tool: 'circle' as DrawingTool, icon: CircleIcon, label: 'Circle' },
-                { tool: 'line' as DrawingTool, icon: Minus, label: 'Line' },
-                { tool: 'freehand' as DrawingTool, icon: Edit3, label: 'Draw' },
-                { tool: 'text' as DrawingTool, icon: Edit3, label: 'Text' },
-              ].map(({ tool, icon: Icon, label }) => (
-                <Button
-                  key={tool}
-                  variant={drawingState.tool === tool ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setDrawingState(prev => ({ ...prev, tool }))}
-                  className="flex flex-col items-center p-2 h-auto"
-                >
-                  <Icon className="h-4 w-4 mb-1" />
-                  <span className="text-xs">{label}</span>
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Colors */}
-          <div>
-            <h4 className="text-sm font-medium mb-2">Stroke Color</h4>
-            <div className="grid grid-cols-7 gap-1">
-              {DRAWING_COLORS.map(color => (
-                <button
-                  key={color}
-                  className={`w-6 h-6 rounded border-2 ${drawingState.strokeColor === color ? 'border-gray-800' : 'border-gray-300'
-                    }`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setDrawingState(prev => ({ ...prev, strokeColor: color }))}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Stroke Width */}
-          <div>
-            <h4 className="text-sm font-medium mb-2">Stroke Width</h4>
-            <div className="flex gap-2">
-              {[1, 2, 4, 6].map(width => (
-                <Button
-                  key={width}
-                  variant={drawingState.strokeWidth === width ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setDrawingState(prev => ({ ...prev, strokeWidth: width }))}
-                >
-                  {width}px
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Actions */}
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={duplicateSelected}
-              disabled={!selectedDiagramId}
-              className="w-full"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Duplicate
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={deleteSelected}
-              disabled={!selectedDiagramId}
-              className="w-full"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          </div>
-
-          <Separator />
-
-          {/* Export */}
-          <div className="space-y-2">
-            <Button variant="outline" size="sm" onClick={exportToPNG} className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Export PNG
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportToJSON} className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              Export JSON
-            </Button>
-          </div>
-
-          {/* Shape Info */}
-          {selectedDiagramId && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="text-sm font-medium mb-2">Selected Shape</h4>
-                <Badge variant="secondary">
-                  {shapes.find(s => s.id === selectedDiagramId)?.type || 'Unknown'}
-                </Badge>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Canvas */}
-      <div className="flex-1">
-        <div
-          className="relative border bg-white shadow-lg"
-          style={{ width, height }}
-        >
-          <Stage
-            ref={stageRef}
-            width={width}
-            height={height}
-            onMouseDown={handleMouseDown}
-            onMousemove={handleMouseMove}
-            onMouseup={handleMouseUp}
-          >
-            <Layer ref={layerRef}>
-              {shapes.map(renderShape)}
-              <Transformer
-                ref={transformerRef}
-                boundBoxFunc={(oldBox, newBox) => {
-                  // Limit resize to maintain minimum size
-                  if (newBox.width < 5 || newBox.height < 5) {
-                    return oldBox;
-                  }
-                  return newBox;
-                }}
-              />
-            </Layer>
-          </Stage>
-        </div>
-      </div>
+    <div className={`absolute inset-0 ${className || ''}`}>
+      <Stage
+        ref={stageRef}
+        width={width}
+        height={height}
+        onMouseDown={handleMouseDown}
+        onMousemove={handleMouseMove}
+        onMouseup={handleMouseUp}
+      >
+        <Layer ref={layerRef}>
+          {shapes.map(renderShape)}
+          <Transformer
+            ref={transformerRef}
+            boundBoxFunc={(oldBox, newBox) => {
+              // Limit resize to maintain minimum size
+              if (newBox.width < 5 || newBox.height < 5) {
+                return oldBox;
+              }
+              return newBox;
+            }}
+          />
+        </Layer>
+      </Stage>
     </div>
   );
 }

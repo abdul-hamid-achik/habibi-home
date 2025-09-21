@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Layers } from "lucide-react";
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from "@/types";
 import { DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
 import { FloatingSettingsPanel } from "./settings/floating_settings_panel";
@@ -11,17 +9,15 @@ import { ModeToggle } from "./header/mode_toggle";
 import { ActionsBar } from "./header/actions_bar";
 import { AIImportToggle } from "./header/ai_import_toggle";
 import { EditorToolbar } from "./header/editor_toolbar";
-import { InspectorTab } from "./sidebar/inspector_tab";
-import { LibraryTab } from "./sidebar/library_tab";
-import { LayersTab } from "./sidebar/layers_tab";
+import { EditorSidebar } from "./sidebar";
 import { KonvaStage } from "../canvas/konva_stage";
 import { useEditorStore, EditorMode } from "../state/editor_store";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { analyzeFloorPlan } from "../services/analysis";
 import { exportFloorPlan } from "../utils/export_utils";
 import { CommandManager, UpdateZoneCommand, UpdateFurnitureCommand, AddZoneCommand } from "../state/command_manager";
+import { duplicateShape } from "../canvas/tools/drawing_tools";
 import { BackgroundImportModal } from "./overlays/background_import_modal";
 import { CalibrationModal } from "./overlays/calibration_modal";
 import { ExportModal } from "./overlays/export_modal";
@@ -55,6 +51,9 @@ function EditorShell({
         showKeyboardShortcuts,
         sidebarCollapsed,
         currentDiagramTool,
+        diagramStrokeColor,
+        diagramFillColor,
+        diagramStrokeWidth,
         setEditorMode,
         setSelectedZoneId,
         setSelectedFurnitureId,
@@ -68,6 +67,7 @@ function EditorShell({
         setDiagramStrokeWidth,
         setZones,
         setFurniture,
+        setDiagrams,
         updateFurniture,
         updateZone,
         deleteZone,
@@ -398,7 +398,7 @@ function EditorShell({
                 snapEnabled={settings.snap > 0}
                 selectedZone={zones.find(z => z.id === selectedZoneId) || null}
                 selectedFurniture={selectedFurniture}
-                selectedDiagramShapes={[]}
+                selectedDiagramShapes={selectedDiagramId ? [selectedDiagramId] : []}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 onZoomIn={() => updateSettings({ scale: Math.min(1.4, settings.scale + 0.05) })}
@@ -426,7 +426,13 @@ function EditorShell({
                 onSetDiagramStroke={setDiagramStrokeColor}
                 onSetDiagramFill={setDiagramFillColor}
                 onSetDiagramStrokeWidth={setDiagramStrokeWidth}
-                onDeleteDiagramShapes={() => { }}
+                onDeleteDiagramShapes={() => {
+                    if (selectedDiagramId) {
+                        const newDiagrams = diagrams.filter(d => d.id !== selectedDiagramId);
+                        setDiagrams(newDiagrams);
+                        setSelectedDiagramId(null);
+                    }
+                }}
                 onExportDiagramPNG={() => setExportOpen(true)}
                 onExportDiagramJSON={() => setExportOpen(true)}
                 zones={zones}
@@ -437,114 +443,53 @@ function EditorShell({
 
             <div className="flex flex-1 overflow-hidden min-h-0">
                 {/* Sidebar */}
-                <div className={`${sidebarCollapsed ? 'w-12' : 'w-96'} bg-white overflow-y-auto transition-all duration-300`}>
-                    <div className="p-4">
-                        {showAIImport ? (
-                            <AIImportPanel onAnalysisComplete={handleAIAnalysis} />
-                        ) : (
-                            <div className="space-y-4">
-                                {/* Diagram Tools Info - only show in diagrams mode */}
-                                {editorMode === 'diagrams' && (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="text-sm font-semibold flex items-center">
-                                                <Layers className="w-4 h-4 mr-2" />
-                                                Diagram Tools
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-gray-600 mb-4">
-                                                Use the drawing tools in the canvas to create diagrams, annotations, and custom shapes on your floor plan.
-                                            </p>
-                                            <div className="space-y-2 text-xs text-gray-500">
-                                                <div>• Select tool to move and resize shapes</div>
-                                                <div>• Rectangle and circle tools for basic shapes</div>
-                                                <div>• Line tool for straight lines</div>
-                                                <div>• Draw tool for freehand sketching</div>
-                                                <div>• Text tool for labels and notes</div>
-                                                <div>• Export your work as PNG or JSON</div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
-
-                                {/* Furniture Library - only show in furniture mode */}
-                                {editorMode === 'furniture' && (
-                                    <LibraryTab
-                                        furnitureCount={furniture.length}
-                                        onAddFurniture={addFurnitureFromCatalog}
-                                        unitSystem={settings.unitSystem}
-                                    />
-                                )}
-
-                                {/* Inspector - show when there's a selection or when mode-specific content is available */}
-                                {(selectedZoneId || selectedFurnitureId || selectedDiagramId || editorMode === 'diagrams') && (
-                                    <InspectorTab
-                                        editorMode={editorMode}
-                                        selectedZone={zones.find(z => z.id === selectedZoneId) || null}
-                                        selectedFurniture={selectedFurniture}
-                                        selectedDiagramShape={diagrams.find(d => d.id === selectedDiagramId) || null}
-                                        zones={zones}
-                                        onUpdateZone={handleZoneUpdate}
-                                        onDeleteZone={() => selectedZoneId && deleteZone(selectedZoneId)}
-                                        onUpdateFurniture={updateFurnitureCmd}
-                                        onDeleteFurniture={deleteFurnitureItem}
-                                        onDuplicateFurniture={duplicateFurniture}
-                                        onRotateFurniture={rotateFurniture}
-                                        onReplaceFurniture={addFurnitureFromCatalog}
-                                        onAssignToZone={(zoneId) => selectedFurnitureId && updateFurnitureCmd(selectedFurnitureId, { zoneId: zoneId || undefined })}
-                                        onUpdateDiagramShape={(id, updates) => {
-                                            // TODO: Implement diagram update
-                                            console.log('Update diagram shape:', id, updates);
-                                        }}
-                                        onDeleteDiagramShape={() => {
-                                            if (selectedDiagramId) {
-                                                // TODO: Implement diagram deletion
-                                                console.log('Delete diagram shape:', selectedDiagramId);
-                                            }
-                                        }}
-                                        onDuplicateDiagramShape={() => {
-                                            if (selectedDiagramId) {
-                                                // TODO: Implement diagram duplication
-                                                console.log('Duplicate diagram shape:', selectedDiagramId);
-                                            }
-                                        }}
-                                    />
-                                )}
-
-                                {/* Layers - always show for all modes */}
-                                <LayersTab
-                                    zones={zones}
-                                    furniture={furniture}
-                                    diagramShapes={diagrams}
-                                    showGrid={settings.showGrid}
-                                    showZones={settings.showZones ?? true}
-                                    showFurniture={settings.showFurniture ?? true}
-                                    showDiagrams={settings.showDiagrams ?? true}
-                                    backgroundImage={settings.background ? { visible: settings.background.visible ?? true, locked: !!settings.background.locked, opacity: settings.background.opacity ?? 0.6 } : undefined}
-                                    onToggleLayerVisibility={(layer) => {
-                                        if (layer === 'grid') updateSettings({ showGrid: !settings.showGrid });
-                                        if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), visible: !settings.background?.visible } } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
-                                        if (layer === 'zones') updateSettings({ showZones: !settings.showZones });
-                                        if (layer === 'furniture') updateSettings({ showFurniture: !settings.showFurniture });
-                                        if (layer === 'diagrams') updateSettings({ showDiagrams: !settings.showDiagrams });
-                                    }}
-                                    onToggleLayerLock={(layer) => {
-                                        if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), locked: !settings.background?.locked } } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
-                                    }}
-                                    onSetLayerOpacity={(layer, opacity) => {
-                                        if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), opacity } } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
-                                    }}
-                                    onMoveLayerUp={() => { }}
-                                    onMoveLayerDown={() => { }}
-                                    onConfigureLayer={(layer) => {
-                                        if (layer === 'background') setBgModalOpen(true);
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <EditorSidebar
+                    showAIImport={showAIImport}
+                    editorMode={editorMode}
+                    sidebarCollapsed={sidebarCollapsed}
+                    zones={zones}
+                    furniture={furniture}
+                    diagrams={diagrams}
+                    selectedZoneId={selectedZoneId}
+                    selectedFurnitureId={selectedFurnitureId}
+                    selectedDiagramId={selectedDiagramId}
+                    selectedFurniture={selectedFurniture}
+                    settings={settings}
+                    currentDiagramTool={currentDiagramTool}
+                    handleZoneUpdate={handleZoneUpdate}
+                    addFurnitureFromCatalog={addFurnitureFromCatalog}
+                    duplicateFurniture={duplicateFurniture}
+                    deleteFurnitureItem={deleteFurnitureItem}
+                    rotateFurniture={rotateFurniture}
+                    updateFurnitureCmd={updateFurnitureCmd}
+                    deleteZone={deleteZone}
+                    updateSettings={updateSettings}
+                    setSelectedDiagramId={setSelectedDiagramId}
+                    setDiagrams={setDiagrams}
+                    setBgModalOpen={setBgModalOpen}
+                    onUpdateDiagramShape={(id, updates) => {
+                        const newDiagrams = diagrams.map(d => d.id === id ? { ...d, ...updates } : d);
+                        setDiagrams(newDiagrams);
+                    }}
+                    onDeleteDiagramShape={() => {
+                        if (selectedDiagramId) {
+                            const newDiagrams = diagrams.filter(d => d.id !== selectedDiagramId);
+                            setDiagrams(newDiagrams);
+                            setSelectedDiagramId(null);
+                        }
+                    }}
+                    onDuplicateDiagramShape={() => {
+                        if (selectedDiagramId) {
+                            const selectedShape = diagrams.find(d => d.id === selectedDiagramId);
+                            if (selectedShape) {
+                                const newShape = duplicateShape(selectedShape);
+                                const newDiagrams = [...diagrams, newShape];
+                                setDiagrams(newDiagrams);
+                                setSelectedDiagramId(newShape.id);
+                            }
+                        }
+                    }}
+                />
 
                 {/* Main Canvas Area */}
                 <div ref={canvasContainerRef} className="flex-1 bg-gray-200 p-4 overflow-auto">
@@ -555,6 +500,12 @@ function EditorShell({
                         editorMode={editorMode}
                         selectedZoneId={selectedZoneId}
                         selectedFurnitureId={selectedFurnitureId}
+                        diagrams={diagrams}
+                        selectedDiagramId={selectedDiagramId}
+                        diagramTool={currentDiagramTool}
+                        diagramStrokeColor={diagramStrokeColor}
+                        diagramFillColor={diagramFillColor}
+                        diagramStrokeWidth={diagramStrokeWidth}
                         onZoneSelect={setSelectedZoneId}
                         onZoneUpdate={handleZoneUpdate}
                         onFurnitureSelect={setSelectedFurnitureId}
@@ -567,6 +518,18 @@ function EditorShell({
                             Object.keys(updates).forEach(k => { (oldVals as Record<string, unknown>)[k as keyof FurnitureItemType] = existing[k as keyof FurnitureItemType]; });
                             commandManagerRef.current.executeCommand(new UpdateFurnitureCommand(id, oldVals, updates));
                             // Command manager handles state update, no need for duplicate update
+                        }}
+                        onDiagramAdd={(shape) => {
+                            const newDiagrams = [...diagrams, shape];
+                            setDiagrams(newDiagrams);
+                        }}
+                        onDiagramUpdate={(id, updates) => {
+                            const newDiagrams = diagrams.map(d => d.id === id ? { ...d, ...updates } : d);
+                            setDiagrams(newDiagrams);
+                        }}
+                        onDiagramDelete={(id) => {
+                            const newDiagrams = diagrams.filter(d => d.id !== id);
+                            setDiagrams(newDiagrams);
                         }}
                         onBackgroundUpdate={(bg) => updateSettings({ background: { ...(settings.background || {}), ...bg } } as FloorPlanSettings)}
                         onDiagramExport={handleDiagramExport}
@@ -633,53 +596,3 @@ export type { EditorShellProps };
 export { EditorShell };
 
 // Removed legacy compatibility exports
-
-// Sidebar inline panel to replace legacy FloorPlanUploader
-function AIImportPanel({ onAnalysisComplete }: { onAnalysisComplete: (analysis: { dimensions?: { width: number; height: number }; zones?: Array<{ zoneId?: string; name: string; x: number; y: number; w: number; h: number }> }) => void }) {
-    const [file, setFile] = useState<File | null>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleAnalyze = async () => {
-        if (!file) return;
-        setIsAnalyzing(true);
-        setError(null);
-        try {
-            const result = await analyzeFloorPlan({ file });
-            onAnalysisComplete(result);
-        } catch (e) {
-            console.error('AI analysis failed:', e);
-            setError('Analysis failed. Please try another image.');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-sm font-semibold">AI Import</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <p className="text-xs text-gray-600">Upload a floor plan image. We will detect dimensions and zones.</p>
-                    <div className="space-y-2">
-                        <Label className="text-xs">Image</Label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => setFile(e.target.files?.[0] || null)}
-                            className="block w-full text-xs"
-                        />
-                    </div>
-                    {error && <p className="text-xs text-red-600">{error}</p>}
-                    <div className="flex justify-end">
-                        <Button size="sm" onClick={handleAnalyze} disabled={!file || isAnalyzing}>
-                            {isAnalyzing ? 'Analyzing…' : 'Analyze'}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}

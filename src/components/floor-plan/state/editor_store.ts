@@ -19,6 +19,9 @@ export interface EditorState {
   // Actions for diagram selection
   setSelectedDiagramId: (id: string | null) => void;
 
+  // Computed values
+  selectedDiagramShape: DiagramShape | null;
+
   // UI state
   editorMode: EditorMode;
   selectedZoneId: string | null;
@@ -123,6 +126,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   diagramStrokeColor: '#000000',
   diagramFillColor: 'transparent',
   diagramStrokeWidth: 2,
+
+  // Computed values
+  get selectedDiagramShape() {
+    const { diagrams, selectedDiagramId } = get();
+    return diagrams.find(d => d.id === selectedDiagramId) || null;
+  },
 
   // Basic setters with function support
   setZones: (zones) => set((state) => ({
