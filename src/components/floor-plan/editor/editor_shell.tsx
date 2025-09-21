@@ -477,38 +477,40 @@ function EditorShell({
                                     />
                                 )}
 
-                                {/* Inspector - always show for all modes */}
-                                <InspectorTab
-                                    editorMode={editorMode}
-                                    selectedZone={zones.find(z => z.id === selectedZoneId) || null}
-                                    selectedFurniture={selectedFurniture}
-                                    selectedDiagramShape={diagrams.find(d => d.id === selectedDiagramId) || null}
-                                    zones={zones}
-                                    onUpdateZone={handleZoneUpdate}
-                                    onDeleteZone={() => selectedZoneId && deleteZone(selectedZoneId)}
-                                    onUpdateFurniture={updateFurnitureCmd}
-                                    onDeleteFurniture={deleteFurnitureItem}
-                                    onDuplicateFurniture={duplicateFurniture}
-                                    onRotateFurniture={rotateFurniture}
-                                    onReplaceFurniture={addFurnitureFromCatalog}
-                                    onAssignToZone={(zoneId) => selectedFurnitureId && updateFurnitureCmd(selectedFurnitureId, { zoneId: zoneId || undefined })}
-                                    onUpdateDiagramShape={(id, updates) => {
-                                        // TODO: Implement diagram update
-                                        console.log('Update diagram shape:', id, updates);
-                                    }}
-                                    onDeleteDiagramShape={() => {
-                                        if (selectedDiagramId) {
-                                            // TODO: Implement diagram deletion
-                                            console.log('Delete diagram shape:', selectedDiagramId);
-                                        }
-                                    }}
-                                    onDuplicateDiagramShape={() => {
-                                        if (selectedDiagramId) {
-                                            // TODO: Implement diagram duplication
-                                            console.log('Duplicate diagram shape:', selectedDiagramId);
-                                        }
-                                    }}
-                                />
+                                {/* Inspector - show when there's a selection or when mode-specific content is available */}
+                                {(selectedZoneId || selectedFurnitureId || selectedDiagramId || editorMode === 'diagrams') && (
+                                    <InspectorTab
+                                        editorMode={editorMode}
+                                        selectedZone={zones.find(z => z.id === selectedZoneId) || null}
+                                        selectedFurniture={selectedFurniture}
+                                        selectedDiagramShape={diagrams.find(d => d.id === selectedDiagramId) || null}
+                                        zones={zones}
+                                        onUpdateZone={handleZoneUpdate}
+                                        onDeleteZone={() => selectedZoneId && deleteZone(selectedZoneId)}
+                                        onUpdateFurniture={updateFurnitureCmd}
+                                        onDeleteFurniture={deleteFurnitureItem}
+                                        onDuplicateFurniture={duplicateFurniture}
+                                        onRotateFurniture={rotateFurniture}
+                                        onReplaceFurniture={addFurnitureFromCatalog}
+                                        onAssignToZone={(zoneId) => selectedFurnitureId && updateFurnitureCmd(selectedFurnitureId, { zoneId: zoneId || undefined })}
+                                        onUpdateDiagramShape={(id, updates) => {
+                                            // TODO: Implement diagram update
+                                            console.log('Update diagram shape:', id, updates);
+                                        }}
+                                        onDeleteDiagramShape={() => {
+                                            if (selectedDiagramId) {
+                                                // TODO: Implement diagram deletion
+                                                console.log('Delete diagram shape:', selectedDiagramId);
+                                            }
+                                        }}
+                                        onDuplicateDiagramShape={() => {
+                                            if (selectedDiagramId) {
+                                                // TODO: Implement diagram duplication
+                                                console.log('Duplicate diagram shape:', selectedDiagramId);
+                                            }
+                                        }}
+                                    />
+                                )}
 
                                 {/* Layers - always show for all modes */}
                                 <LayersTab

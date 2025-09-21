@@ -110,7 +110,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   settings: DEFAULT_SETTINGS,
   diagrams: [],
 
-  editorMode: 'furniture',
+  editorMode: 'zones',
   selectedZoneId: null,
   selectedFurnitureId: null,
   selectedDiagramId: null,
@@ -244,6 +244,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       furniture: [],
       settings: DEFAULT_SETTINGS,
       diagrams: [],
+      editorMode: 'zones',
     });
   },
 
