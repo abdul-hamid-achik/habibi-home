@@ -17,8 +17,8 @@ export interface Command {
   id: string;
   name: string;
   timestamp: number;
-  execute(): void;
-  undo(): void;
+  execute(state: EditorState): EditorState;
+  undo(state: EditorState): EditorState;
   canMergeWith?(other: Command): boolean;
   mergeWith?(other: Command): Command;
 }
@@ -35,8 +35,8 @@ export abstract class BaseCommand implements Command {
     this.timestamp = Date.now();
   }
 
-  abstract execute(): void;
-  abstract undo(): void;
+  abstract execute(state: EditorState): EditorState;
+  abstract undo(state: EditorState): EditorState;
 
   canMergeWith(_other: Command): boolean {
     return false; // Override in subclasses if merging is supported
@@ -50,35 +50,45 @@ export abstract class BaseCommand implements Command {
 // Add/Remove Zone Commands
 export class AddZoneCommand extends BaseCommand {
   constructor(
-    private zone: FloorPlanZone,
-    private setState: React.Dispatch<React.SetStateAction<FloorPlanZone[]>>
+    private zone: FloorPlanZone
   ) {
     super(`Add Zone: ${zone.name}`);
   }
 
-  execute(): void {
-    this.setState(prev => [...prev, this.zone]);
+  execute(state: EditorState): EditorState {
+    return {
+      ...state,
+      zones: [...state.zones, this.zone]
+    };
   }
 
-  undo(): void {
-    this.setState(prev => prev.filter(z => z.id !== this.zone.id));
+  undo(state: EditorState): EditorState {
+    return {
+      ...state,
+      zones: state.zones.filter(z => z.id !== this.zone.id)
+    };
   }
 }
 
 export class RemoveZoneCommand extends BaseCommand {
   constructor(
-    private zone: FloorPlanZone,
-    private setState: React.Dispatch<React.SetStateAction<FloorPlanZone[]>>
+    private zone: FloorPlanZone
   ) {
     super(`Remove Zone: ${zone.name}`);
   }
 
-  execute(): void {
-    this.setState(prev => prev.filter(z => z.id !== this.zone.id));
+  execute(state: EditorState): EditorState {
+    return {
+      ...state,
+      zones: state.zones.filter(z => z.id !== this.zone.id)
+    };
   }
 
-  undo(): void {
-    this.setState(prev => [...prev, this.zone]);
+  undo(state: EditorState): EditorState {
+    return {
+      ...state,
+      zones: [...state.zones, this.zone]
+    };
   }
 }
 
@@ -87,22 +97,27 @@ export class UpdateZoneCommand extends BaseCommand {
   constructor(
     private zoneId: string,
     private oldValues: Partial<FloorPlanZone>,
-    private newValues: Partial<FloorPlanZone>,
-    private setState: (updater: (prev: FloorPlanZone[]) => FloorPlanZone[]) => void
+    private newValues: Partial<FloorPlanZone>
   ) {
     super(`Update Zone`);
   }
 
-  execute(): void {
-    this.setState(prev => prev.map(zone =>
-      zone.id === this.zoneId ? { ...zone, ...this.newValues } : zone
-    ));
+  execute(state: EditorState): EditorState {
+    return {
+      ...state,
+      zones: state.zones.map(zone =>
+        zone.id === this.zoneId ? { ...zone, ...this.newValues } : zone
+      )
+    };
   }
 
-  undo(): void {
-    this.setState(prev => prev.map(zone =>
-      zone.id === this.zoneId ? { ...zone, ...this.oldValues } : zone
-    ));
+  undo(state: EditorState): EditorState {
+    return {
+      ...state,
+      zones: state.zones.map(zone =>
+        zone.id === this.zoneId ? { ...zone, ...this.oldValues } : zone
+      )
+    };
   }
 
   canMergeWith(other: Command): boolean {
@@ -115,8 +130,7 @@ export class UpdateZoneCommand extends BaseCommand {
     return new UpdateZoneCommand(
       this.zoneId,
       this.oldValues,
-      other.newValues,
-      this.setState
+      other.newValues
     );
   }
 }
@@ -124,35 +138,45 @@ export class UpdateZoneCommand extends BaseCommand {
 // Add/Remove Furniture Commands
 export class AddFurnitureCommand extends BaseCommand {
   constructor(
-    private furniture: FurnitureItemType,
-    private setState: React.Dispatch<React.SetStateAction<FurnitureItemType[]>>
+    private furniture: FurnitureItemType
   ) {
     super(`Add Furniture: ${furniture.name}`);
   }
 
-  execute(): void {
-    this.setState(prev => [...prev, this.furniture]);
+  execute(state: EditorState): EditorState {
+    return {
+      ...state,
+      furniture: [...state.furniture, this.furniture]
+    };
   }
 
-  undo(): void {
-    this.setState(prev => prev.filter(f => f.id !== this.furniture.id));
+  undo(state: EditorState): EditorState {
+    return {
+      ...state,
+      furniture: state.furniture.filter(f => f.id !== this.furniture.id)
+    };
   }
 }
 
 export class RemoveFurnitureCommand extends BaseCommand {
   constructor(
-    private furniture: FurnitureItemType,
-    private setState: React.Dispatch<React.SetStateAction<FurnitureItemType[]>>
+    private furniture: FurnitureItemType
   ) {
     super(`Remove Furniture: ${furniture.name}`);
   }
 
-  execute(): void {
-    this.setState(prev => prev.filter(f => f.id !== this.furniture.id));
+  execute(state: EditorState): EditorState {
+    return {
+      ...state,
+      furniture: state.furniture.filter(f => f.id !== this.furniture.id)
+    };
   }
 
-  undo(): void {
-    this.setState(prev => [...prev, this.furniture]);
+  undo(state: EditorState): EditorState {
+    return {
+      ...state,
+      furniture: [...state.furniture, this.furniture]
+    };
   }
 }
 
@@ -161,22 +185,27 @@ export class UpdateFurnitureCommand extends BaseCommand {
   constructor(
     private furnitureId: string,
     private oldValues: Partial<FurnitureItemType>,
-    private newValues: Partial<FurnitureItemType>,
-    private setState: (updater: (prev: FurnitureItemType[]) => FurnitureItemType[]) => void
+    private newValues: Partial<FurnitureItemType>
   ) {
     super(`Update Furniture`);
   }
 
-  execute(): void {
-    this.setState(prev => prev.map(furniture =>
-      furniture.id === this.furnitureId ? { ...furniture, ...this.newValues } : furniture
-    ));
+  execute(state: EditorState): EditorState {
+    return {
+      ...state,
+      furniture: state.furniture.map(furniture =>
+        furniture.id === this.furnitureId ? { ...furniture, ...this.newValues } : furniture
+      )
+    };
   }
 
-  undo(): void {
-    this.setState(prev => prev.map(furniture =>
-      furniture.id === this.furnitureId ? { ...furniture, ...this.oldValues } : furniture
-    ));
+  undo(state: EditorState): EditorState {
+    return {
+      ...state,
+      furniture: state.furniture.map(furniture =>
+        furniture.id === this.furnitureId ? { ...furniture, ...this.oldValues } : furniture
+      )
+    };
   }
 
   canMergeWith(other: Command): boolean {
@@ -189,8 +218,7 @@ export class UpdateFurnitureCommand extends BaseCommand {
     return new UpdateFurnitureCommand(
       this.furnitureId,
       this.oldValues,
-      other.newValues,
-      this.setState
+      other.newValues
     );
   }
 }
@@ -204,13 +232,13 @@ export class BatchCommand extends BaseCommand {
     super(name);
   }
 
-  execute(): void {
-    this.commands.forEach(cmd => cmd.execute());
+  execute(state: EditorState): EditorState {
+    return this.commands.reduce((currentState, cmd) => cmd.execute(currentState), state);
   }
 
-  undo(): void {
+  undo(state: EditorState): EditorState {
     // Undo in reverse order
-    [...this.commands].reverse().forEach(cmd => cmd.undo());
+    return [...this.commands].reverse().reduce((currentState, cmd) => cmd.undo(currentState), state);
   }
 }
 
@@ -219,16 +247,32 @@ export class CommandManager {
   private history: Command[] = [];
   private currentIndex: number = -1;
   private maxHistorySize: number = 50;
+  private store: { getState: () => EditorState; setState: (state: EditorState) => void } | null = null;
+
+  constructor(store?: { getState: () => EditorState; setState: (state: EditorState) => void }) {
+    this.store = store || null;
+  }
+
+  // Set the store reference
+  setStore(store: { getState: () => EditorState; setState: (state: EditorState) => void }): void {
+    this.store = store;
+  }
 
   // Execute a command and add it to history
   executeCommand(command: Command): void {
+    if (!this.store) {
+      console.error('CommandManager: No store set');
+      return;
+    }
+
     // Check if we can merge with the last command
     if (this.currentIndex >= 0) {
       const lastCommand = this.history[this.currentIndex];
       if (lastCommand.canMergeWith?.(command)) {
         const mergedCommand = lastCommand.mergeWith!(command);
         this.history[this.currentIndex] = mergedCommand;
-        mergedCommand.execute();
+        const newState = mergedCommand.execute(this.store.getState());
+        this.store.setState(newState);
         return;
       }
     }
@@ -236,8 +280,12 @@ export class CommandManager {
     // Remove any commands after current index (for when we undo then do new command)
     this.history = this.history.slice(0, this.currentIndex + 1);
 
-    // Add command and execute
-    command.execute();
+    // Execute command and update store
+    const currentState = this.store.getState();
+    const newState = command.execute(currentState);
+    this.store.setState(newState);
+
+    // Add command to history
     this.history.push(command);
     this.currentIndex++;
 
@@ -250,21 +298,25 @@ export class CommandManager {
 
   // Undo the last command
   undo(): boolean {
-    if (!this.canUndo()) return false;
+    if (!this.store || !this.canUndo()) return false;
 
     const command = this.history[this.currentIndex];
-    command.undo();
+    const currentState = this.store.getState();
+    const newState = command.undo(currentState);
+    this.store.setState(newState);
     this.currentIndex--;
     return true;
   }
 
   // Redo the next command
   redo(): boolean {
-    if (!this.canRedo()) return false;
+    if (!this.store || !this.canRedo()) return false;
 
     this.currentIndex++;
     const command = this.history[this.currentIndex];
-    command.execute();
+    const currentState = this.store.getState();
+    const newState = command.execute(currentState);
+    this.store.setState(newState);
     return true;
   }
 

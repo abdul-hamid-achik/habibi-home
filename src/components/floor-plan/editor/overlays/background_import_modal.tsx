@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Upload, X, Image, ExternalLink } from 'lucide-react';
+import { Upload, X, Image, ExternalLink, Maximize2 } from 'lucide-react';
 
 interface BackgroundSettings {
   url: string;
@@ -24,15 +24,19 @@ interface BackgroundImportModalProps {
   onClose: () => void;
   onImport: (settings: BackgroundSettings) => void;
   currentSettings?: Partial<BackgroundSettings>;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export function BackgroundImportModal({
   isOpen,
   onClose,
   onImport,
-  currentSettings
+  currentSettings,
+  canvasWidth = 800,
+  canvasHeight = 600
 }: BackgroundImportModalProps) {
-  
+
   const [importMethod, setImportMethod] = useState<'upload' | 'url'>('upload');
   const [imageUrl, setImageUrl] = useState<string>(currentSettings?.url || '');
   const [opacity, setOpacity] = useState<number>(currentSettings?.opacity || 0.6);
@@ -41,25 +45,44 @@ export function BackgroundImportModal({
   const [locked, setLocked] = useState<boolean>(currentSettings?.locked || true);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // Handle image load to get dimensions
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+  };
+
+  // Fit image to canvas
+  const fitToCanvas = () => {
+    if (!imageDimensions) return;
+
+    // Calculate scale to fit image within canvas while maintaining aspect ratio
+    const scaleX = canvasWidth / imageDimensions.width;
+    const scaleY = canvasHeight / imageDimensions.height;
+    const newScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond original size
+
+    setScale(newScale);
+  };
+
   // Handle file upload
   const handleFileUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
-    
+
     // For demo purposes, create a local object URL
     // In a real app, you'd upload to your server/cloud storage
     const objectUrl = URL.createObjectURL(file);
     setImageUrl(objectUrl);
-    
+
     // Simulate upload progress
     setIsUploading(true);
     setUploadProgress(0);
-    
+
     const interval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 100) {
@@ -71,7 +94,7 @@ export function BackgroundImportModal({
       });
     }, 100);
   };
-  
+
   // Handle file input change
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,7 +102,7 @@ export function BackgroundImportModal({
       handleFileUpload(file);
     }
   };
-  
+
   // Handle drag and drop
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -88,18 +111,18 @@ export function BackgroundImportModal({
       handleFileUpload(file);
     }
   };
-  
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
-  
+
   // Apply import
   const handleImport = () => {
     if (!imageUrl) {
       alert('Please provide an image URL or upload a file');
       return;
     }
-    
+
     const settings: BackgroundSettings = {
       url: imageUrl,
       opacity,
@@ -109,11 +132,11 @@ export function BackgroundImportModal({
       offsetY: 0,
       locked
     };
-    
+
     onImport(settings);
     onClose();
   };
-  
+
   // Reset form
   const handleReset = () => {
     setImageUrl('');
@@ -124,9 +147,9 @@ export function BackgroundImportModal({
     setUploadProgress(0);
     setIsUploading(false);
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
       <Card className="w-96 max-h-[80vh] overflow-y-auto">
@@ -147,7 +170,7 @@ export function BackgroundImportModal({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          
+
           {/* Import Method */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Import Method</Label>
@@ -172,7 +195,7 @@ export function BackgroundImportModal({
               </Button>
             </div>
           </div>
-          
+
           {/* File Upload */}
           {importMethod === 'upload' && (
             <div className="space-y-3">
@@ -198,7 +221,7 @@ export function BackgroundImportModal({
                   className="hidden"
                 />
               </div>
-              
+
               {isUploading && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs text-gray-500">
@@ -206,7 +229,7 @@ export function BackgroundImportModal({
                     <span>{uploadProgress}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
@@ -215,7 +238,7 @@ export function BackgroundImportModal({
               )}
             </div>
           )}
-          
+
           {/* URL Input */}
           {importMethod === 'url' && (
             <div className="space-y-3">
@@ -231,27 +254,46 @@ export function BackgroundImportModal({
               </p>
             </div>
           )}
-          
+
           {/* Image Preview */}
           {imageUrl && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">Preview</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Preview</Label>
+                {imageDimensions && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fitToCanvas}
+                    className="text-xs"
+                  >
+                    <Maximize2 className="w-3 h-3 mr-1" />
+                    Fit to Canvas
+                  </Button>
+                )}
+              </div>
               <div className="border rounded-lg p-2 bg-gray-50">
                 <img
                   src={imageUrl}
                   alt="Background preview"
                   className="w-full h-32 object-contain rounded"
                   style={{ opacity }}
+                  onLoad={handleImageLoad}
                 />
+                {imageDimensions && (
+                  <div className="text-xs text-gray-500 mt-1 text-center">
+                    {imageDimensions.width} × {imageDimensions.height}px
+                  </div>
+                )}
               </div>
             </div>
           )}
-          
+
           {/* Settings */}
           {imageUrl && (
             <div className="space-y-4">
               <Label className="text-sm font-medium">Background Settings</Label>
-              
+
               {/* Opacity */}
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
@@ -267,7 +309,7 @@ export function BackgroundImportModal({
                   className="w-full"
                 />
               </div>
-              
+
               {/* Scale */}
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
@@ -283,7 +325,7 @@ export function BackgroundImportModal({
                   className="w-full"
                 />
               </div>
-              
+
               {/* Rotation */}
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
@@ -299,7 +341,7 @@ export function BackgroundImportModal({
                   className="w-full"
                 />
               </div>
-              
+
               {/* Lock Background */}
               <div className="flex items-center justify-between">
                 <div>
@@ -313,7 +355,7 @@ export function BackgroundImportModal({
               </div>
             </div>
           )}
-          
+
           {/* Actions */}
           <div className="flex space-x-2">
             <Button variant="outline" onClick={onClose} className="flex-1">
@@ -324,8 +366,8 @@ export function BackgroundImportModal({
                 Reset
               </Button>
             )}
-            <Button 
-              onClick={handleImport} 
+            <Button
+              onClick={handleImport}
               disabled={!imageUrl || isUploading}
               className="flex-1"
             >

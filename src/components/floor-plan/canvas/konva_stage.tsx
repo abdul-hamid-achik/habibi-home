@@ -31,6 +31,7 @@ interface KonvaStageProps {
 
   // Event handlers
   onZoneSelect: (id: string | null) => void;
+  onZoneUpdate?: (id: string, updates: Partial<FloorPlanZone>) => void;
   onFurnitureSelect: (id: string | null) => void;
   onDiagramSelect?: (id: string | null) => void;
   onFurnitureUpdate: (id: string, updates: Partial<FurnitureItemType>) => void;
@@ -62,6 +63,7 @@ export function KonvaStage({
   selectedZoneId,
   selectedFurnitureId,
   onZoneSelect,
+  onZoneUpdate,
   onFurnitureSelect,
   onDiagramSelect,
   onFurnitureUpdate,
@@ -217,6 +219,7 @@ export function KonvaStage({
             settings={effectiveSettings}
             selectedZoneId={selectedZoneId}
             onZoneSelect={onZoneSelect}
+            onZoneUpdate={onZoneUpdate}
             editorMode={editorMode}
           />
         )}

@@ -82,6 +82,15 @@ function EditorShell({
     // Command manager
     const commandManagerRef = useRef(new CommandManager());
 
+    // Initialize command manager with store reference
+    useEffect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const store = useEditorStore as { getState: () => any; setState: (state: any) => void };
+        if (store && commandManagerRef.current) {
+            commandManagerRef.current.setStore(store);
+        }
+    }, []);
+
     // Initialize store with initial data on mount
     useEffect(() => {
         if (initialZones || initialFurniture || initialSettings) {
@@ -222,11 +231,10 @@ function EditorShell({
         };
         commandManagerRef.current.executeCommand(
             new AddZoneCommand(
-                newZone,
-                setZones as unknown as React.Dispatch<React.SetStateAction<FloorPlanZone[]>>
+                newZone
             )
         );
-        setZones((prev: FloorPlanZone[]) => [...prev, newZone]);
+        // Command manager handles state update, no need for duplicate update
     };
 
     const rotateFurniture = (degrees: number) => {
@@ -238,11 +246,10 @@ function EditorShell({
             new UpdateFurnitureCommand(
                 selectedFurnitureId,
                 oldVals,
-                newVals,
-                setFurniture as unknown as React.Dispatch<React.SetStateAction<FurnitureItemType[]>>
+                newVals
             )
         );
-        setFurniture((prev: FurnitureItemType[]) => prev.map((f: FurnitureItemType) => f.id === selectedFurnitureId ? { ...f, r: newR } : f));
+        // Command manager handles state update, no need for duplicate update
     };
 
     // Commandized wrappers for inspector edits
@@ -260,14 +267,13 @@ function EditorShell({
             new UpdateFurnitureCommand(
                 id,
                 oldVals,
-                updates,
-                setFurniture
+                updates
             )
         );
-        setFurniture((prev: FurnitureItemType[]) => prev.map((f: FurnitureItemType) => f.id === id ? { ...f, ...updates } : f));
+        // Command manager handles state update, no need for duplicate update
     };
 
-    const updateZoneCmd = (id: string, updates: Partial<FloorPlanZone>) => {
+    const handleZoneUpdate = (id: string, updates: Partial<FloorPlanZone>) => {
         const existing = zones.find(z => z.id === id);
         if (!existing) return updateZone(id, updates);
         const oldVals: Partial<FloorPlanZone> = {};
@@ -281,11 +287,10 @@ function EditorShell({
             new UpdateZoneCommand(
                 id,
                 oldVals,
-                updates,
-                setZones
+                updates
             )
         );
-        setZones((prev: FloorPlanZone[]) => prev.map((z: FloorPlanZone) => z.id === id ? { ...z, ...updates } : z));
+        // Command manager handles state update, no need for duplicate update
     };
 
     const handleSave = () => {
@@ -301,14 +306,10 @@ function EditorShell({
 
     // Toolbar undo/redo
     const handleUndo = () => {
-        if (commandManagerRef.current.undo()) {
-            // store already updated in commands
-        }
+        return commandManagerRef.current.undo();
     };
     const handleRedo = () => {
-        if (commandManagerRef.current.redo()) {
-            // store updated
-        }
+        return commandManagerRef.current.redo();
     };
 
     // Export specific formats
@@ -455,7 +456,7 @@ function EditorShell({
                                     selectedFurniture={selectedFurniture}
                                     selectedDiagramShape={diagrams.find(d => d.id === selectedDiagramId) || null}
                                     zones={zones}
-                                    onUpdateZone={updateZoneCmd}
+                                    onUpdateZone={handleZoneUpdate}
                                     onDeleteZone={() => selectedZoneId && deleteZone(selectedZoneId)}
                                     onUpdateFurniture={updateFurnitureCmd}
                                     onDeleteFurniture={deleteFurnitureItem}
@@ -523,6 +524,7 @@ function EditorShell({
                         selectedZoneId={selectedZoneId}
                         selectedFurnitureId={selectedFurnitureId}
                         onZoneSelect={setSelectedZoneId}
+                        onZoneUpdate={handleZoneUpdate}
                         onFurnitureSelect={setSelectedFurnitureId}
                         onDiagramSelect={setSelectedDiagramId}
                         onFurnitureUpdate={(id, updates) => {
@@ -531,8 +533,8 @@ function EditorShell({
                             if (!existing) return updateFurniture(id, updates);
                             const oldVals: Partial<FurnitureItemType> = {};
                             Object.keys(updates).forEach(k => { (oldVals as Record<string, unknown>)[k as keyof FurnitureItemType] = existing[k as keyof FurnitureItemType]; });
-                            commandManagerRef.current.executeCommand(new UpdateFurnitureCommand(id, oldVals, updates, setFurniture));
-                            setFurniture((prev: FurnitureItemType[]) => prev.map((f: FurnitureItemType) => f.id === id ? { ...f, ...updates } : f));
+                            commandManagerRef.current.executeCommand(new UpdateFurnitureCommand(id, oldVals, updates));
+                            // Command manager handles state update, no need for duplicate update
                         }}
                         onBackgroundUpdate={(bg) => updateSettings({ background: { ...(settings.background || {}), ...bg } } as FloorPlanSettings)}
                         onDiagramExport={handleDiagramExport}
@@ -557,6 +559,8 @@ function EditorShell({
                 onClose={() => setBgModalOpen(false)}
                 onImport={(bg) => updateSettings({ background: bg })}
                 currentSettings={settings.background}
+                canvasWidth={settings.apartmentWidth * settings.scale}
+                canvasHeight={settings.apartmentHeight * settings.scale}
             />
 
             {/* Calibration */}
