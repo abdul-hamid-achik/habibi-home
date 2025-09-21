@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getAllFurnitureLegacy } from '@/features/floor_plan/furniture';
+import { getAllFurnitureLegacy } from '@/components/floor-plan/furniture';
 
 export interface FurnitureSpec {
   id: string;

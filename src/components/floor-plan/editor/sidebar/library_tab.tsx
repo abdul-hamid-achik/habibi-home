@@ -18,7 +18,7 @@ import {
   RefreshCw,
   Plus
 } from 'lucide-react';
-import { getAllFurnitureLegacy } from '@/features/floor_plan/furniture';
+import { getAllFurnitureLegacy } from '@/components/floor-plan/furniture';
 
 interface LibraryTabProps {
   onAddFurniture: (catalogName: string) => void;

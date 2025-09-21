@@ -22,7 +22,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { FloorPlanZone, FurnitureItemType } from '@/types';
-import { getAllFurnitureLegacy } from '@/features/floor_plan/furniture';
+import { getAllFurnitureLegacy } from '@/components/floor-plan/furniture';
 
 interface FurnitureInspectorProps {
   furniture: FurnitureItemType;

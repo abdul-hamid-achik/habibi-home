@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validateCategoryId } from "@/features/floor_plan/data/categories";
+import { validateCategoryId } from "@/components/floor-plan/data/categories";
 
 // Core furniture metadata schema
 export const furnitureMetadataSchema = z.object({

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search, X, Package, Sofa, Armchair, Table, Monitor, Bed, Zap, Leaf } from "lucide-react";
 import { DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
-import { FURNITURE_CATEGORIES } from "@/features/floor_plan/data/categories";
+import { FURNITURE_CATEGORIES } from "@/components/floor-plan/data/categories";
 
 interface FurnitureCatalogProps {
     furnitureCount: number;
@@ -111,7 +111,7 @@ export function FurnitureCatalog({ furnitureCount, onAddFurniture }: FurnitureCa
                             onClick={() => setSelectedCategory(category.id)}
                             className="text-xs h-7 px-2"
                         >
-{category.name}
+                            {category.name}
                         </Button>
                     ))}
                 </div>
