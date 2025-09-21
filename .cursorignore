@@ -3,8 +3,3 @@ scripts/
 *.sh
 *.bash
 script/
-
-# Ignore other common files that might trigger auto-run
-# node_modules/
-# *.config.js
-# *.config.ts

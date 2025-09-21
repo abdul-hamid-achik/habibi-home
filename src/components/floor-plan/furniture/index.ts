@@ -80,6 +80,4 @@ export function getAllFurnitureLegacy() {
 const validation = furnitureRegistry.validate();
 if (!validation.isValid) {
   console.error('Furniture registry validation failed:', validation.errors);
-} else {
-  console.log(`Furniture registry initialized with ${furnitureRegistry.list().length} items`);
 }

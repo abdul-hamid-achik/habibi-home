@@ -33,7 +33,7 @@ export function GridLayer({ settings, width, height }: GridLayerProps) {
           <path
             d={`M ${gridSpacing} 0 L 0 0 0 ${gridSpacing}`}
             fill="none"
-            stroke="#e2e8f0"
+            stroke="#9ca3af"
             strokeWidth="1"
           />
         </pattern>

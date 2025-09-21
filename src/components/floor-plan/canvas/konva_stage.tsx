@@ -8,6 +8,7 @@ import { ZonesLayer } from './layers/zones_layer';
 import { FurnitureLayer } from './layers/furniture_layer';
 import { DiagramLayer } from './layers/diagram_layer';
 import { BackgroundLayer } from './layers/background_layer';
+import { SelectionOverlay } from './layers/selection_overlay';
 import {
   calculateCanvasSize,
   calculateCenterOffset,
@@ -212,18 +213,6 @@ export function KonvaStage({
           height={canvasSize.height}
         />
 
-        {/* Zones Layer */}
-        {showZones && (
-          <ZonesLayer
-            zones={zones}
-            settings={effectiveSettings}
-            selectedZoneId={selectedZoneId}
-            onZoneSelect={onZoneSelect}
-            onZoneUpdate={onZoneUpdate}
-            editorMode={editorMode}
-          />
-        )}
-
         {/* Konva Furniture Layer */}
         {showFurniture && (
           <FurnitureLayer
@@ -237,6 +226,38 @@ export function KonvaStage({
             height={canvasSize.height}
           />
         )}
+
+        {/* Zones Layer */}
+        {showZones && (
+          <ZonesLayer
+            zones={zones}
+            settings={effectiveSettings}
+            selectedZoneId={selectedZoneId}
+            onZoneSelect={onZoneSelect}
+            onZoneUpdate={onZoneUpdate}
+            editorMode={editorMode}
+          />
+        )}
+
+        {/* Selection Overlay for resizing and transforming */}
+        <SelectionOverlay
+          width={canvasSize.width}
+          height={canvasSize.height}
+          scale={effectiveSettings.scale}
+          selectedFurniture={selectedFurnitureId ? furniture.find(f => f.id === selectedFurnitureId) || null : null}
+          selectedZone={selectedZoneId ? zones.find(z => z.id === selectedZoneId) || null : null}
+          editorMode={editorMode}
+          onFurnitureUpdate={onFurnitureUpdate}
+          onZoneUpdate={onZoneUpdate || (() => { })}
+          onRotationChange={(rotation) => {
+            if (selectedFurnitureId) {
+              onFurnitureUpdate(selectedFurnitureId, { r: rotation });
+            }
+          }}
+          snapEnabled={effectiveSettings.snap > 0}
+          snapGrid={effectiveSettings.snap}
+          constrainToCanvas={true}
+        />
       </div>
     );
   };

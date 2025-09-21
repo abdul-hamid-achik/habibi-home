@@ -14,17 +14,22 @@ import {
   SheetTrigger,
   SheetDescription
 } from '@/components/ui/sheet';
-import { Settings2, Ruler, Grid3X3, Monitor } from 'lucide-react';
+import { Settings2, Ruler, Grid3X3, Monitor, Target, ImagePlus, Home } from 'lucide-react';
 import { FloorPlanSettings } from '@/types';
+import { calculateCanvasArea } from '../../utils/canvas_modes';
 
 interface FloatingSettingsPanelProps {
   settings: FloorPlanSettings;
   onSettingsChange: (settings: Partial<FloorPlanSettings>) => void;
+  onCalibrateScale?: () => void;
+  onImportBackground?: () => void;
 }
 
 export function FloatingSettingsPanel({
   settings,
-  onSettingsChange
+  onSettingsChange,
+  onCalibrateScale,
+  onImportBackground
 }: FloatingSettingsPanelProps) {
   const updateSetting = <K extends keyof FloorPlanSettings>(
     key: K,
@@ -58,7 +63,63 @@ export function FloatingSettingsPanel({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-6 h-full overflow-y-auto pr-2">
+            {/* Unit System */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Ruler className="w-4 h-4 text-gray-500" />
+                <Label className="text-sm font-medium">Unit System</Label>
+              </div>
+              <div className="space-y-3 pl-6">
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant={settings.unitSystem === 'cm' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => updateSetting('unitSystem', 'cm')}
+                    className="flex-1"
+                  >
+                    Centimeters (cm)
+                  </Button>
+                  <Button
+                    variant={settings.unitSystem === 'm' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => updateSetting('unitSystem', 'm')}
+                    className="flex-1"
+                  >
+                    Meters (m)
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Choose your preferred unit system for all measurements
+                </p>
+              </div>
+            </div>
+
+            {/* Canvas Info */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Home className="w-4 h-4 text-gray-500" />
+                <Label className="text-sm font-medium">Canvas Information</Label>
+              </div>
+              <div className="space-y-3 pl-6">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="text-xs text-gray-600 mb-1">Canvas Area</div>
+                  <div className="text-sm font-medium">
+                    {(() => {
+                      const area = calculateCanvasArea(settings, settings.unitSystem);
+                      return area.formatted;
+                    })()}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {settings.unitSystem === 'm'
+                      ? `${settings.apartmentWidth / 100} × ${settings.apartmentHeight / 100} m`
+                      : `${settings.apartmentWidth} × ${settings.apartmentHeight} cm`
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Scale Settings */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
@@ -155,7 +216,7 @@ export function FloatingSettingsPanel({
                         name="canvasMode"
                         value="fixed"
                         checked={settings.canvasMode === 'fixed'}
-                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered')}
+                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered' | 'adaptive')}
                         className="text-blue-600"
                       />
                       <Label htmlFor="fixed" className="text-sm cursor-pointer">
@@ -169,7 +230,7 @@ export function FloatingSettingsPanel({
                         name="canvasMode"
                         value="fit-to-screen"
                         checked={settings.canvasMode === 'fit-to-screen'}
-                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered')}
+                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered' | 'adaptive')}
                         className="text-blue-600"
                       />
                       <Label htmlFor="fit-to-screen" className="text-sm cursor-pointer">
@@ -183,11 +244,25 @@ export function FloatingSettingsPanel({
                         name="canvasMode"
                         value="centered"
                         checked={settings.canvasMode === 'centered'}
-                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered')}
+                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered' | 'adaptive')}
                         className="text-blue-600"
                       />
                       <Label htmlFor="centered" className="text-sm cursor-pointer">
                         Centered - Fixed size, centered on screen
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="adaptive"
+                        name="canvasMode"
+                        value="adaptive"
+                        checked={settings.canvasMode === 'adaptive'}
+                        onChange={(e) => updateSetting('canvasMode', e.target.value as 'fixed' | 'fit-to-screen' | 'centered' | 'adaptive')}
+                        className="text-blue-600"
+                      />
+                      <Label htmlFor="adaptive" className="text-sm cursor-pointer">
+                        Adaptive - Smart sizing for best use of space
                       </Label>
                     </div>
                   </div>
@@ -246,6 +321,37 @@ export function FloatingSettingsPanel({
                 </div>
                 <p className="text-xs text-gray-400">
                   Total floor plan dimensions and canvas size constraints
+                </p>
+              </div>
+            </div>
+
+            {/* Tools & Actions */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Target className="w-4 h-4 text-gray-500" />
+                <Label className="text-sm font-medium">Tools & Actions</Label>
+              </div>
+              <div className="space-y-3 pl-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onCalibrateScale}
+                  className="w-full justify-start"
+                >
+                  <Target className="w-4 h-4 mr-2" />
+                  Calibrate Scale
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onImportBackground}
+                  className="w-full justify-start"
+                >
+                  <ImagePlus className="w-4 h-4 mr-2" />
+                  Import Background
+                </Button>
+                <p className="text-xs text-gray-500">
+                  Advanced tools for precise measurements and background images
                 </p>
               </div>
             </div>

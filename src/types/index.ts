@@ -85,12 +85,13 @@ export const floorPlanSettingsSchema = z.object({
   showDimensions: z.boolean(),
   apartmentWidth: z.number().min(50, "Apartment width must be at least 50cm").max(5000, "Apartment width must be reasonable"),
   apartmentHeight: z.number().min(50, "Apartment height must be at least 50cm").max(5000, "Apartment height must be reasonable"),
-  canvasMode: z.enum(['fixed', 'fit-to-screen', 'centered']),
+  canvasMode: z.enum(['fixed', 'fit-to-screen', 'centered', 'adaptive']),
   maxCanvasWidth: z.number().min(100).max(5000).optional(),
   maxCanvasHeight: z.number().min(100).max(5000).optional(),
   showZones: z.boolean().default(true).optional(),
   showFurniture: z.boolean().default(true).optional(),
   showDiagrams: z.boolean().default(true).optional(),
+  unitSystem: z.enum(['cm', 'm']).default('cm'),
   background: z.object({
     url: z.string().url(),
     opacity: z.number().min(0).max(1).default(0.6),
@@ -126,5 +127,6 @@ export const saveProjectDataSchema = z.object({
     snap: z.number(),
     showGrid: z.boolean(),
     showDimensions: z.boolean(),
+    unitSystem: z.enum(['cm', 'm']).default('cm'),
   }),
 });

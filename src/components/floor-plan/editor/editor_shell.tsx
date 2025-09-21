@@ -53,6 +53,7 @@ function EditorShell({
         selectedDiagramId,
         showAIImport,
         showKeyboardShortcuts,
+        sidebarCollapsed,
         currentDiagramTool,
         setEditorMode,
         setSelectedZoneId,
@@ -60,6 +61,7 @@ function EditorShell({
         setSelectedDiagramId,
         setShowAIImport,
         setShowKeyboardShortcuts,
+        setSidebarCollapsed,
         setCurrentDiagramTool,
         setDiagramStrokeColor,
         setDiagramFillColor,
@@ -142,6 +144,10 @@ function EditorShell({
         setEditorMode('zones');
         setSelectedFurnitureId(null);
         setSelectedZoneId(null);
+    };
+
+    const handleSidebarToggle = () => {
+        setSidebarCollapsed(!sidebarCollapsed);
     };
 
     // Actions
@@ -358,6 +364,23 @@ function EditorShell({
                         isActive={showAIImport}
                         onToggle={handleAIImportToggle}
                     />
+
+                    {/* Sidebar Toggle */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleSidebarToggle}
+                        className="h-8 px-2"
+                        title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {sidebarCollapsed ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
+                            )}
+                        </svg>
+                    </Button>
                 </div>
 
                 <ActionsBar
@@ -384,8 +407,6 @@ function EditorShell({
                 onToggleGrid={() => updateSettings({ showGrid: !settings.showGrid })}
                 onToggleSnap={() => updateSettings({ snap: settings.snap > 0 ? 0 : 5 })}
                 onCanvasModeChange={(mode) => updateSettings({ canvasMode: mode })}
-                onCalibrateScale={() => setCalibrateOpen(true)}
-                onImportBackground={() => setBgModalOpen(true)}
                 onExportPNG={() => handleExportSpecific('png')}
                 onExportSVG={() => handleExportSpecific('svg')}
                 onExportPDF={() => handleExportSpecific('pdf')}
@@ -416,40 +437,47 @@ function EditorShell({
 
             <div className="flex flex-1 overflow-hidden min-h-0">
                 {/* Sidebar */}
-                <div className="w-96 bg-white overflow-y-auto">
+                <div className={`${sidebarCollapsed ? 'w-12' : 'w-96'} bg-white overflow-y-auto transition-all duration-300`}>
                     <div className="p-4">
                         {showAIImport ? (
                             <AIImportPanel onAnalysisComplete={handleAIAnalysis} />
-                        ) : editorMode === 'diagrams' ? (
-                            <div className="space-y-4">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-sm font-semibold flex items-center">
-                                            <Layers className="w-4 h-4 mr-2" />
-                                            Diagram Tools
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-sm text-gray-600 mb-4">
-                                            Use the drawing tools in the canvas to create diagrams, annotations, and custom shapes on your floor plan.
-                                        </p>
-                                        <div className="space-y-2 text-xs text-gray-500">
-                                            <div>• Select tool to move and resize shapes</div>
-                                            <div>• Rectangle and circle tools for basic shapes</div>
-                                            <div>• Line tool for straight lines</div>
-                                            <div>• Draw tool for freehand sketching</div>
-                                            <div>• Text tool for labels and notes</div>
-                                            <div>• Export your work as PNG or JSON</div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
                         ) : (
                             <div className="space-y-4">
-                                <LibraryTab
-                                    furnitureCount={furniture.length}
-                                    onAddFurniture={addFurnitureFromCatalog}
-                                />
+                                {/* Diagram Tools Info - only show in diagrams mode */}
+                                {editorMode === 'diagrams' && (
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="text-sm font-semibold flex items-center">
+                                                <Layers className="w-4 h-4 mr-2" />
+                                                Diagram Tools
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-sm text-gray-600 mb-4">
+                                                Use the drawing tools in the canvas to create diagrams, annotations, and custom shapes on your floor plan.
+                                            </p>
+                                            <div className="space-y-2 text-xs text-gray-500">
+                                                <div>• Select tool to move and resize shapes</div>
+                                                <div>• Rectangle and circle tools for basic shapes</div>
+                                                <div>• Line tool for straight lines</div>
+                                                <div>• Draw tool for freehand sketching</div>
+                                                <div>• Text tool for labels and notes</div>
+                                                <div>• Export your work as PNG or JSON</div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {/* Furniture Library - only show in furniture mode */}
+                                {editorMode === 'furniture' && (
+                                    <LibraryTab
+                                        furnitureCount={furniture.length}
+                                        onAddFurniture={addFurnitureFromCatalog}
+                                        unitSystem={settings.unitSystem}
+                                    />
+                                )}
+
+                                {/* Inspector - always show for all modes */}
                                 <InspectorTab
                                     editorMode={editorMode}
                                     selectedZone={zones.find(z => z.id === selectedZoneId) || null}
@@ -481,6 +509,8 @@ function EditorShell({
                                         }
                                     }}
                                 />
+
+                                {/* Layers - always show for all modes */}
                                 <LayersTab
                                     zones={zones}
                                     furniture={furniture}
@@ -515,7 +545,7 @@ function EditorShell({
                 </div>
 
                 {/* Main Canvas Area */}
-                <div ref={canvasContainerRef} className="flex-1 bg-gray-100 p-4 overflow-auto">
+                <div ref={canvasContainerRef} className="flex-1 bg-gray-200 p-4 overflow-auto">
                     <KonvaStage
                         zones={zones}
                         furniture={furniture}
@@ -551,6 +581,8 @@ function EditorShell({
             <FloatingSettingsPanel
                 settings={settings}
                 onSettingsChange={(updates) => updateSettings(updates)}
+                onCalibrateScale={() => setCalibrateOpen(true)}
+                onImportBackground={() => setBgModalOpen(true)}
             />
 
             {/* Background import */}
@@ -571,6 +603,7 @@ function EditorShell({
                 canvasHeight={settings.apartmentHeight}
                 currentScale={settings.scale}
                 onScaleChange={(newScale) => updateSettings({ scale: newScale })}
+                unitSystem={settings.unitSystem}
             />
 
             {/* Export modal using export_utils */}

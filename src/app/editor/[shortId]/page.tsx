@@ -249,6 +249,7 @@ export default function ImportedEditorPage() {
         canvasMode: 'fit-to-screen',
         maxCanvasWidth: 1200,
         maxCanvasHeight: 800,
+        unitSystem: 'cm',
     };
 
     // Generate intelligent furniture placement based on zones and their types

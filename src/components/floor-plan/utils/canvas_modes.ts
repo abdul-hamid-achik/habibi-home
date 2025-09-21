@@ -1,6 +1,6 @@
 import { FloorPlanSettings } from '@/types';
 
-export type CanvasMode = 'fixed' | 'fit-to-screen' | 'centered';
+export type CanvasMode = 'fixed' | 'fit-to-screen' | 'centered' | 'adaptive';
 
 export interface CanvasSize {
   width: number;
@@ -52,22 +52,22 @@ export function calculateCanvasSize(
       }
 
       // Calculate scale to fit viewport while maintaining aspect ratio
-      const aspectRatio = apartmentWidth / apartmentHeight;
       const viewportAspectRatio = viewport.width / viewport.height;
+      const apartmentAspectRatio = apartmentWidth / apartmentHeight;
 
       let fitScale = scale;
       let fitWidth = width;
       let fitHeight = height;
 
-      if (aspectRatio > viewportAspectRatio) {
+      if (apartmentAspectRatio > viewportAspectRatio) {
         // Constrained by width
         fitWidth = Math.min(viewport.width, maxCanvasWidth);
-        fitHeight = fitWidth / aspectRatio;
+        fitHeight = fitWidth / apartmentAspectRatio;
         fitScale = fitWidth / apartmentWidth;
       } else {
         // Constrained by height
         fitHeight = Math.min(viewport.height, maxCanvasHeight);
-        fitWidth = fitHeight * aspectRatio;
+        fitWidth = fitHeight * apartmentAspectRatio;
         fitScale = fitHeight / apartmentHeight;
       }
 
@@ -81,6 +81,55 @@ export function calculateCanvasSize(
       // Fixed size but centered in viewport
       // Size calculation is same as 'fixed', centering is handled by CSS/positioning
       return { width, height };
+
+    case 'adaptive':
+      if (!viewport) {
+        // If no viewport provided, use constrained dimensions
+        return { width, height };
+      }
+
+      // Calculate available space (accounting for UI elements)
+      const availableWidth = viewport.width;
+      const availableHeight = viewport.height;
+
+      // Calculate optimal scale to maximize canvas usage while maintaining aspect ratio
+
+      // Start with a reasonable base scale
+      let optimalScale = scale;
+
+      // Calculate how much we can scale up while staying within viewport bounds
+      const maxScaleByWidth = availableWidth / apartmentWidth;
+      const maxScaleByHeight = availableHeight / apartmentHeight;
+
+      // Use the more restrictive constraint
+      const maxPossibleScale = Math.min(maxScaleByWidth, maxScaleByHeight);
+
+      // Apply a conservative scaling factor (leave some margin for UI)
+      optimalScale = Math.min(maxPossibleScale * 0.9, scale * 1.5);
+
+      // Ensure we don't go below the base scale
+      optimalScale = Math.max(optimalScale, scale * 0.8);
+
+      // Calculate final dimensions
+      const finalWidth = apartmentWidth * optimalScale;
+      const finalHeight = apartmentHeight * optimalScale;
+
+      // Apply max constraints
+      const constrainedWidth = Math.min(finalWidth, maxCanvasWidth);
+      const constrainedHeight = Math.min(finalHeight, maxCanvasHeight);
+
+      // If we hit constraints, adjust scale proportionally
+      const adjustedScale = constrainedWidth < finalWidth
+        ? constrainedWidth / apartmentWidth
+        : constrainedHeight < finalHeight
+          ? constrainedHeight / apartmentHeight
+          : optimalScale;
+
+      return {
+        width: Math.round(constrainedWidth),
+        height: Math.round(constrainedHeight),
+        scale: adjustedScale
+      };
 
     default:
       // Fallback to fixed mode
@@ -130,7 +179,7 @@ export function getCanvasModeClasses(mode: CanvasMode): string {
  * @returns True if viewport dimensions are needed
  */
 export function requiresViewport(mode: CanvasMode): boolean {
-  return mode === 'fit-to-screen';
+  return mode === 'fit-to-screen' || mode === 'adaptive';
 }
 
 /**
@@ -147,4 +196,38 @@ export function getEffectiveScale(
     return canvasSize.scale;
   }
   return settings.scale;
+}
+
+/**
+ * Calculate canvas area in the specified unit system
+ * @param settings - Floor plan settings
+ * @param unitSystem - Unit system ('cm' | 'm')
+ * @returns Canvas area as [value, unit] tuple
+ */
+export function calculateCanvasArea(
+  settings: FloorPlanSettings,
+  unitSystem: 'cm' | 'm' = 'cm'
+): { value: number; unit: string; formatted: string } {
+  const widthCm = settings.apartmentWidth;
+  const heightCm = settings.apartmentHeight;
+
+  if (unitSystem === 'm') {
+    const widthM = widthCm / 100;
+    const heightM = heightCm / 100;
+    const areaM2 = widthM * heightM;
+
+    return {
+      value: areaM2,
+      unit: 'm²',
+      formatted: `${areaM2.toFixed(1)} m²`
+    };
+  } else {
+    const areaCm2 = widthCm * heightCm;
+
+    return {
+      value: areaCm2,
+      unit: 'cm²',
+      formatted: `${areaCm2} cm²`
+    };
+  }
 }

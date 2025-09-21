@@ -25,6 +25,7 @@ export interface EditorState {
   selectedFurnitureId: string | null;
   showAIImport: boolean;
   showKeyboardShortcuts: boolean;
+  sidebarCollapsed: boolean;
 
   // Drawing state
   currentDiagramTool: DrawingTool;
@@ -49,6 +50,7 @@ export interface EditorState {
   setSelectedFurnitureId: (id: string | null) => void;
   setShowAIImport: (show: boolean) => void;
   setShowKeyboardShortcuts: (show: boolean) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 
   // Composite actions
   updateZone: (id: string, updates: Partial<FloorPlanZone>) => void;
@@ -91,12 +93,13 @@ const DEFAULT_SETTINGS: FloorPlanSettings = {
   showDimensions: true,
   apartmentWidth: 1050,
   apartmentHeight: 800,
-  canvasMode: 'centered',
+  canvasMode: 'adaptive',
   maxCanvasWidth: 1200,
   maxCanvasHeight: 800,
   showZones: true,
   showFurniture: true,
   showDiagrams: true,
+  unitSystem: 'cm',
 };
 
 // Create the store
@@ -113,6 +116,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedDiagramId: null,
   showAIImport: false,
   showKeyboardShortcuts: false,
+  sidebarCollapsed: false,
 
   // Drawing state
   currentDiagramTool: 'select' as DrawingTool,
@@ -144,6 +148,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setSelectedDiagramId: (selectedDiagramId) => set({ selectedDiagramId }),
   setShowAIImport: (showAIImport) => set({ showAIImport }),
   setShowKeyboardShortcuts: (showKeyboardShortcuts) => set({ showKeyboardShortcuts }),
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
 
   // Drawing state setters
   setCurrentDiagramTool: (tool) => set({ currentDiagramTool: tool }),

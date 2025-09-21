@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Search, X, Package, Sofa, Armchair, Table, Monitor, Bed, Zap, Leaf } from "lucide-react";
 import { DEFAULT_FURNITURE_CATALOG } from "@/lib/furniture-catalog";
 import { FURNITURE_CATEGORIES } from "@/components/floor-plan/data/categories";
+import { format_dimension } from "../../utils/units";
 
 interface FurnitureCatalogProps {
     furnitureCount: number;
     onAddFurniture: (catalogName: string) => void;
+    unitSystem?: 'cm' | 'm';
 }
 
-export function FurnitureCatalog({ furnitureCount, onAddFurniture }: FurnitureCatalogProps) {
+export function FurnitureCatalog({ furnitureCount, onAddFurniture, unitSystem = 'cm' }: FurnitureCatalogProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -130,7 +132,7 @@ export function FurnitureCatalog({ furnitureCount, onAddFurniture }: FurnitureCa
                                 <div className="flex-1 min-w-0 ml-2">
                                     <div className="text-xs font-medium text-gray-900 truncate">{item.name}</div>
                                     <div className="text-xs text-gray-500 truncate">
-                                        {item.width}×{item.height} cm
+                                        {format_dimension(item.width, unitSystem)}×{format_dimension(item.height, unitSystem)}
                                     </div>
                                 </div>
                                 <div

@@ -212,7 +212,8 @@ export function FurnitureLayer({
         <div
             className="absolute inset-0 pointer-events-none"
             style={{
-                display: editorMode === 'furniture' ? 'block' : 'none'
+                display: editorMode === 'furniture' ? 'block' : 'none',
+                zIndex: 2
             }}
         >
             <Stage
@@ -222,6 +223,7 @@ export function FurnitureLayer({
                 onClick={handleStageClick}
                 onTap={handleStageClick}
                 className="pointer-events-auto"
+                style={{ zIndex: 2 }}
             >
                 <Layer ref={layerRef} />
             </Stage>

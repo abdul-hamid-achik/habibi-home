@@ -25,8 +25,6 @@ import {
   Grid3X3,
   Magnet,
   Monitor,
-  Ruler,
-  ImagePlus,
   Download,
   Plus,
   Trash2,
@@ -51,7 +49,7 @@ import { FloorPlanZone, FurnitureItemType } from '@/types';
 import { DrawingTool } from '../../canvas/tools/diagram_schemas';
 
 type EditorMode = 'zones' | 'furniture' | 'diagrams';
-type CanvasMode = 'fixed' | 'fit-to-screen' | 'centered';
+type CanvasMode = 'fixed' | 'fit-to-screen' | 'centered' | 'adaptive';
 
 interface EditorToolbarProps {
   // Current state
@@ -75,8 +73,6 @@ interface EditorToolbarProps {
   onToggleGrid: () => void;
   onToggleSnap: () => void;
   onCanvasModeChange: (mode: CanvasMode) => void;
-  onCalibrateScale: () => void;
-  onImportBackground: () => void;
 
   // Export actions
   onExportPNG: () => void;
@@ -134,8 +130,6 @@ export function EditorToolbar({
   onToggleGrid,
   onToggleSnap,
   onCanvasModeChange,
-  onCalibrateScale,
-  onImportBackground,
   onExportPNG,
   onExportSVG,
   onExportPDF,
@@ -253,6 +247,7 @@ export function EditorToolbar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="centered">Centered</SelectItem>
+          <SelectItem value="adaptive">Adaptive</SelectItem>
           <SelectItem value="fit-to-screen">Fit Screen</SelectItem>
           <SelectItem value="fixed">Fixed Size</SelectItem>
         </SelectContent>
@@ -260,27 +255,7 @@ export function EditorToolbar({
 
       <Separator orientation="vertical" className="h-6" />
 
-      {/* Tools */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onCalibrateScale}
-        className="h-8 px-2"
-        title="Calibrate Scale"
-      >
-        <Ruler className="h-4 w-4 mr-1" />
-        Calibrate
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onImportBackground}
-        className="h-8 px-2"
-        title="Import Background"
-      >
-        <ImagePlus className="h-4 w-4 mr-1" />
-        Background
-      </Button>
+      {/* Tools moved to Settings Panel */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -434,12 +409,12 @@ export function EditorToolbar({
               className="w-16 h-8 text-xs border rounded px-2"
               title="Rotation (degrees)"
             />
-            <Select value={selectedFurniture.zoneId || ""} onValueChange={onAssignToZone}>
+            <Select value={selectedFurniture.zoneId || "no-zone"} onValueChange={onAssignToZone}>
               <SelectTrigger className="w-24 h-8">
                 <SelectValue placeholder="Zone" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Zone</SelectItem>
+                <SelectItem value="no-zone">No Zone</SelectItem>
                 {zones.map(zone => (
                   <SelectItem key={zone.id} value={zone.id}>
                     {zone.name}

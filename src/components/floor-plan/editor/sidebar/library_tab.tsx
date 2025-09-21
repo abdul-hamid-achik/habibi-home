@@ -19,6 +19,7 @@ import {
   Plus
 } from 'lucide-react';
 import { getAllFurnitureLegacy } from '@/components/floor-plan/furniture';
+import { format_dimension } from '../../utils/units';
 
 interface LibraryTabProps {
   onAddFurniture: (catalogName: string) => void;
@@ -27,6 +28,7 @@ interface LibraryTabProps {
   isReplaceMode?: boolean;
   selectedFurnitureName?: string;
   onDragStart?: (furnitureName: string, event: React.DragEvent) => void;
+  unitSystem?: 'cm' | 'm';
 }
 
 export function LibraryTab({
@@ -35,7 +37,8 @@ export function LibraryTab({
   furnitureCount,
   isReplaceMode = false,
   selectedFurnitureName,
-  onDragStart
+  onDragStart,
+  unitSystem = 'cm'
 }: LibraryTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -180,7 +183,7 @@ export function LibraryTab({
                   <div className="flex-1 min-w-0 ml-2">
                     <div className="text-xs font-medium text-gray-900 truncate">{item.name}</div>
                     <div className="text-xs text-gray-500 truncate">
-                      {item.width}×{item.height} cm
+                      {format_dimension(item.width, unitSystem)}×{format_dimension(item.height, unitSystem)}
                     </div>
                   </div>
                   <div

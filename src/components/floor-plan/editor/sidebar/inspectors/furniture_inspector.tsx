@@ -245,14 +245,14 @@ export function FurnitureInspector({
           <div className="space-y-3">
             <Label className="text-xs font-medium">Zone Assignment</Label>
             <Select
-              value={furniture.zoneId || ""}
+              value={furniture.zoneId || "no-zone"}
               onValueChange={(value) => onAssignToZone(value)}
             >
               <SelectTrigger className="w-full h-8">
                 <SelectValue placeholder="Select zone..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Zone</SelectItem>
+                <SelectItem value="no-zone">No Zone</SelectItem>
                 {zones.map(zone => (
                   <SelectItem key={zone.id} value={zone.id}>
                     {zone.name}
