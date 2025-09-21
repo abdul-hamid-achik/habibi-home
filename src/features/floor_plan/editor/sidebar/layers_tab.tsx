@@ -36,12 +36,15 @@ interface LayersTabProps {
   furniture: FurnitureItemType[];
   diagramShapes: unknown[];
   showGrid: boolean;
+  showZones: boolean;
+  showFurniture: boolean;
+  showDiagrams: boolean;
   backgroundImage?: {
     visible: boolean;
     locked: boolean;
     opacity: number;
   };
-  
+
   onToggleLayerVisibility: (layerType: string) => void;
   onToggleLayerLock: (layerType: string) => void;
   onSetLayerOpacity: (layerType: string, opacity: number) => void;
@@ -55,6 +58,9 @@ export function LayersTab({
   furniture,
   diagramShapes,
   showGrid,
+  showZones,
+  showFurniture,
+  showDiagrams,
   backgroundImage,
   onToggleLayerVisibility,
   onToggleLayerLock,
@@ -63,27 +69,27 @@ export function LayersTab({
   onMoveLayerDown,
   onConfigureLayer
 }: LayersTabProps) {
-  
+
   const layers: LayerItem[] = [
     {
       id: 'diagrams',
       name: 'Diagrams',
       type: 'diagrams',
-      visible: true,
+      visible: showDiagrams,
       count: diagramShapes.length
     },
     {
       id: 'furniture',
       name: 'Furniture',
       type: 'furniture',
-      visible: true,
+      visible: showFurniture,
       count: furniture.length
     },
     {
       id: 'zones',
       name: 'Zones',
       type: 'zones',
-      visible: true,
+      visible: showZones,
       count: zones.length
     },
     {
@@ -101,7 +107,7 @@ export function LayersTab({
       opacity: backgroundImage.opacity
     }] : [])
   ];
-  
+
   const getLayerIcon = (type: string) => {
     switch (type) {
       case 'background': return <Image className="w-4 h-4" />;
@@ -112,7 +118,7 @@ export function LayersTab({
       default: return <Package className="w-4 h-4" />;
     }
   };
-  
+
   return (
     <div className="h-full flex flex-col">
       <Card className="h-full">
@@ -143,7 +149,7 @@ export function LayersTab({
                     )}
                   </div>
                 </div>
-                
+
                 {/* Layer Controls */}
                 <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   {/* Move Up/Down */}
@@ -169,7 +175,7 @@ export function LayersTab({
                       <MoveDown className="w-3 h-3" />
                     </Button>
                   )}
-                  
+
                   {/* Lock/Unlock */}
                   {layer.locked !== undefined && (
                     <Button
@@ -186,7 +192,7 @@ export function LayersTab({
                       )}
                     </Button>
                   )}
-                  
+
                   {/* Configure */}
                   <Button
                     variant="ghost"
@@ -198,7 +204,7 @@ export function LayersTab({
                     <Settings className="w-3 h-3" />
                   </Button>
                 </div>
-                
+
                 {/* Visibility Toggle */}
                 <Switch
                   checked={layer.visible}
@@ -208,7 +214,7 @@ export function LayersTab({
               </div>
             ))}
           </div>
-          
+
           {/* Opacity Controls for Background */}
           {backgroundImage && (
             <div className="border-t pt-3 mt-3">
@@ -231,7 +237,7 @@ export function LayersTab({
               </div>
             </div>
           )}
-          
+
           {/* Layer Statistics */}
           <div className="border-t pt-3 mt-3">
             <div className="text-xs text-gray-500 space-y-1">

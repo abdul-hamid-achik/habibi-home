@@ -6,19 +6,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2, Pencil, Copy } from 'lucide-react';
 import { DiagramShape } from '../../../canvas/tools/diagram_schemas';
 
 interface DiagramInspectorProps {
   shapes: DiagramShape[];
   onUpdate: (id: string, updates: Record<string, unknown>) => void;
   onDelete: () => void;
+  onDuplicate?: () => void;
 }
 
-export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspectorProps) {
+export function DiagramInspector({ shapes, onUpdate, onDelete, onDuplicate }: DiagramInspectorProps) {
   const isMultiSelection = shapes.length > 1;
   const shape = shapes[0]; // For single selection
-  
+
   const updateShape = (updates: Record<string, unknown>) => {
     if (isMultiSelection) {
       // Apply updates to all selected shapes
@@ -50,19 +51,32 @@ export function DiagramInspector({ shapes, onUpdate, onDelete }: DiagramInspecto
               <Pencil className="w-4 h-4 mr-2" />
               {isMultiSelection ? `${shapes.length} Shapes` : `${shape?.type} Shape`}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDelete}
-              className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
-              title="Delete Selected"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
+            <div className="flex items-center space-x-1">
+              {!isMultiSelection && onDuplicate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDuplicate}
+                  className="h-6 w-6 p-0"
+                  title="Duplicate Shape"
+                >
+                  <Copy className="w-3 h-3" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDelete}
+                className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                title="Delete Selected"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          
+
           {/* Position (single selection only) */}
           {!isMultiSelection && shape && (
             <div className="space-y-3">

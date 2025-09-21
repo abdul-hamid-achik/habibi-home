@@ -14,13 +14,13 @@ interface InspectorTabProps {
   editorMode: EditorMode;
   selectedZone: FloorPlanZone | null;
   selectedFurniture: FurnitureItemType | null;
-  selectedDiagramShapes: DiagramShape[];
+  selectedDiagramShape: DiagramShape | null;
   zones: FloorPlanZone[];
-  
+
   // Zone actions
   onUpdateZone: (id: string, updates: Partial<FloorPlanZone>) => void;
   onDeleteZone: () => void;
-  
+
   // Furniture actions
   onUpdateFurniture: (id: string, updates: Partial<FurnitureItemType>) => void;
   onDeleteFurniture: () => void;
@@ -28,17 +28,18 @@ interface InspectorTabProps {
   onRotateFurniture: (degrees: number) => void;
   onReplaceFurniture: (catalogName: string) => void;
   onAssignToZone: (zoneId: string) => void;
-  
+
   // Diagram actions
   onUpdateDiagramShape: (id: string, updates: Record<string, unknown>) => void;
-  onDeleteDiagramShapes: () => void;
+  onDeleteDiagramShape: () => void;
+  onDuplicateDiagramShape: () => void;
 }
 
 export function InspectorTab({
   editorMode,
   selectedZone,
   selectedFurniture,
-  selectedDiagramShapes,
+  selectedDiagramShape,
   zones,
   onUpdateZone,
   onDeleteZone,
@@ -49,9 +50,10 @@ export function InspectorTab({
   onReplaceFurniture,
   onAssignToZone,
   onUpdateDiagramShape,
-  onDeleteDiagramShapes
+  onDeleteDiagramShape,
+  onDuplicateDiagramShape
 }: InspectorTabProps) {
-  
+
   // Auto-determine which inspector to show based on selection
   const getActiveInspector = () => {
     if (selectedFurniture && editorMode === 'furniture') {
@@ -60,14 +62,14 @@ export function InspectorTab({
     if (selectedZone && editorMode === 'zones') {
       return 'zone';
     }
-    if (selectedDiagramShapes.length > 0 && editorMode === 'diagrams') {
+    if (selectedDiagramShape && editorMode === 'diagrams') {
       return 'diagram';
     }
     return 'none';
   };
-  
+
   const activeInspector = getActiveInspector();
-  
+
   if (activeInspector === 'zone' && selectedZone) {
     return (
       <ZoneInspector
@@ -77,7 +79,7 @@ export function InspectorTab({
       />
     );
   }
-  
+
   if (activeInspector === 'furniture' && selectedFurniture) {
     return (
       <FurnitureInspector
@@ -92,17 +94,18 @@ export function InspectorTab({
       />
     );
   }
-  
-  if (activeInspector === 'diagram' && selectedDiagramShapes.length > 0) {
+
+  if (activeInspector === 'diagram' && selectedDiagramShape) {
     return (
       <DiagramInspector
-        shapes={selectedDiagramShapes}
+        shapes={[selectedDiagramShape]}
         onUpdate={onUpdateDiagramShape}
-        onDelete={onDeleteDiagramShapes}
+        onDelete={onDeleteDiagramShape}
+        onDuplicate={onDuplicateDiagramShape}
       />
     );
   }
-  
+
   // Default state - show selection prompt
   return (
     <div className="h-full flex flex-col items-center justify-center text-gray-500 px-4">

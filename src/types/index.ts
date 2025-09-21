@@ -1,43 +1,11 @@
 import { z } from "zod";
 
 // Additional frontend types that extend database types
-export interface FloorPlanZone {
-  id: string;
-  zoneId: string;
-  name: string;
-  x: number;
-  y: number;
-  w: number; // width in cm
-  h: number; // height in cm
-  color?: string;
-  suggestedFurniture?: string[];
-}
+export type FloorPlanZone = z.infer<typeof floorPlanZoneSchema>;
 
-export interface FurnitureItemType {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  w: number; // width in cm
-  h: number; // height in cm
-  r: number; // rotation in degrees
-  color: string;
-  catalogId?: string;
-  zoneId?: string;
-}
+export type FurnitureItemType = z.infer<typeof furnitureItemSchema>;
 
-export interface FloorPlanSettings {
-  // Frontend-specific properties
-  scale: number;
-  snap: number; // frontend alias for snapGrid
-  showGrid: boolean;
-  showDimensions: boolean;
-  apartmentWidth: number;
-  apartmentHeight: number;
-  canvasMode: 'fixed' | 'fit-to-screen' | 'centered';
-  maxCanvasWidth?: number;
-  maxCanvasHeight?: number;
-}
+export type FloorPlanSettings = z.infer<typeof floorPlanSettingsSchema>;
 
 export interface ProjectData {
   id: string;
@@ -120,6 +88,19 @@ export const floorPlanSettingsSchema = z.object({
   canvasMode: z.enum(['fixed', 'fit-to-screen', 'centered']),
   maxCanvasWidth: z.number().min(100).max(5000).optional(),
   maxCanvasHeight: z.number().min(100).max(5000).optional(),
+  showZones: z.boolean().default(true).optional(),
+  showFurniture: z.boolean().default(true).optional(),
+  showDiagrams: z.boolean().default(true).optional(),
+  background: z.object({
+    url: z.string().url(),
+    opacity: z.number().min(0).max(1).default(0.6),
+    scale: z.number().positive().default(1),
+    rotation: z.number().default(0),
+    offsetX: z.number().default(0),
+    offsetY: z.number().default(0),
+    locked: z.boolean().default(true),
+    visible: z.boolean().optional()
+  }).optional(),
 });
 
 export const zoneSchema = z.object({

@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Undo,
   Redo,
   ZoomIn,
@@ -36,9 +42,13 @@ import {
   Pen,
   Type,
   FileImage,
-  FileJson
+  FileJson,
+  FileText,
+  File,
+  ChevronDown
 } from 'lucide-react';
 import { FloorPlanZone, FurnitureItemType } from '@/types';
+import { DrawingTool } from '../../canvas/tools/diagram_schemas';
 
 type EditorMode = 'zones' | 'furniture' | 'diagrams';
 type CanvasMode = 'fixed' | 'fit-to-screen' | 'centered';
@@ -50,12 +60,12 @@ interface EditorToolbarProps {
   scale: number;
   showGrid: boolean;
   snapEnabled: boolean;
-  
+
   // Selected items
   selectedZone: FloorPlanZone | null;
   selectedFurniture: FurnitureItemType | null;
   selectedDiagramShapes: string[];
-  
+
   // Global actions
   onUndo: () => void;
   onRedo: () => void;
@@ -67,14 +77,20 @@ interface EditorToolbarProps {
   onCanvasModeChange: (mode: CanvasMode) => void;
   onCalibrateScale: () => void;
   onImportBackground: () => void;
-  onExport: () => void;
-  
+
+  // Export actions
+  onExportPNG: () => void;
+  onExportSVG: () => void;
+  onExportPDF: () => void;
+  onExportJSON: () => void;
+  onExportCSV: () => void;
+
   // Zone actions
   onAddZone: () => void;
   onDeleteZone: () => void;
   onBringZoneForward: () => void;
   onSendZoneBack: () => void;
-  
+
   // Furniture actions
   onAddFromLibrary: () => void;
   onDuplicateFurniture: () => void;
@@ -82,19 +98,19 @@ interface EditorToolbarProps {
   onRotateFurniture: (degrees: number) => void;
   onFurnitureRotationChange: (rotation: number) => void;
   onAssignToZone: (zoneId: string) => void;
-  
+
   // Diagram actions
-  onSelectDiagramTool: (tool: string) => void;
+  onSelectDiagramTool: (tool: DrawingTool) => void;
   onSetDiagramStroke: (color: string) => void;
   onSetDiagramFill: (color: string) => void;
   onSetDiagramStrokeWidth: (width: number) => void;
   onDeleteDiagramShapes: () => void;
   onExportDiagramPNG: () => void;
   onExportDiagramJSON: () => void;
-  
+
   // Data
   zones: FloorPlanZone[];
-  
+
   // State
   canUndo: boolean;
   canRedo: boolean;
@@ -120,7 +136,11 @@ export function EditorToolbar({
   onCanvasModeChange,
   onCalibrateScale,
   onImportBackground,
-  onExport,
+  onExportPNG,
+  onExportSVG,
+  onExportPDF,
+  onExportJSON,
+  onExportCSV,
   onAddZone,
   onDeleteZone,
   onBringZoneForward,
@@ -143,7 +163,7 @@ export function EditorToolbar({
   canRedo,
   currentDiagramTool
 }: EditorToolbarProps) {
-  
+
   const renderGlobalActions = () => (
     <div className="flex items-center space-x-1">
       {/* Undo/Redo */}
@@ -167,9 +187,9 @@ export function EditorToolbar({
       >
         <Redo className="h-4 w-4" />
       </Button>
-      
+
       <Separator orientation="vertical" className="h-6" />
-      
+
       {/* Zoom */}
       <Button
         variant="ghost"
@@ -201,9 +221,9 @@ export function EditorToolbar({
       <span className="text-xs text-gray-500 min-w-12 text-center">
         {Math.round(scale * 100)}%
       </span>
-      
+
       <Separator orientation="vertical" className="h-6" />
-      
+
       {/* Grid & Snap */}
       <Button
         variant={snapEnabled ? "default" : "ghost"}
@@ -223,9 +243,9 @@ export function EditorToolbar({
       >
         <Grid3X3 className="h-4 w-4" />
       </Button>
-      
+
       <Separator orientation="vertical" className="h-6" />
-      
+
       {/* Canvas Mode */}
       <Select value={canvasMode} onValueChange={onCanvasModeChange}>
         <SelectTrigger className="w-32 h-8">
@@ -237,9 +257,9 @@ export function EditorToolbar({
           <SelectItem value="fixed">Fixed Size</SelectItem>
         </SelectContent>
       </Select>
-      
+
       <Separator orientation="vertical" className="h-6" />
-      
+
       {/* Tools */}
       <Button
         variant="ghost"
@@ -261,22 +281,48 @@ export function EditorToolbar({
         <ImagePlus className="h-4 w-4 mr-1" />
         Background
       </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onExport}
-        className="h-8 px-2"
-        title="Export"
-      >
-        <Download className="h-4 w-4 mr-1" />
-        Export
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2"
+            title="Export Floor Plan"
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Export
+            <ChevronDown className="h-3 w-3 ml-1" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onExportPNG}>
+            <FileImage className="h-4 w-4 mr-2" />
+            Export PNG
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onExportSVG}>
+            <File className="h-4 w-4 mr-2" />
+            Export SVG
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onExportPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onExportJSON}>
+            <FileJson className="h-4 w-4 mr-2" />
+            Export JSON
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onExportCSV}>
+            <FileText className="h-4 w-4 mr-2" />
+            Export CSV
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
-  
+
   const renderZoneActions = () => {
     if (editorMode !== 'zones') return null;
-    
+
     return (
       <div className="flex items-center space-x-1">
         <Separator orientation="vertical" className="h-6" />
@@ -325,10 +371,10 @@ export function EditorToolbar({
       </div>
     );
   };
-  
+
   const renderFurnitureActions = () => {
     if (editorMode !== 'furniture') return null;
-    
+
     return (
       <div className="flex items-center space-x-1">
         <Separator orientation="vertical" className="h-6" />
@@ -406,15 +452,15 @@ export function EditorToolbar({
       </div>
     );
   };
-  
+
   const renderDiagramActions = () => {
     if (editorMode !== 'diagrams') return null;
-    
+
     return (
       <div className="flex items-center space-x-1">
         <Separator orientation="vertical" className="h-6" />
         <span className="text-xs font-medium text-gray-600 px-2">Diagram Tools</span>
-        
+
         {/* Drawing Tools */}
         <Button
           variant={currentDiagramTool === 'select' ? 'default' : 'ghost'}
@@ -455,7 +501,7 @@ export function EditorToolbar({
         <Button
           variant={currentDiagramTool === 'draw' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => onSelectDiagramTool('draw')}
+          onClick={() => onSelectDiagramTool('freehand')}
           className="h-8 w-8 p-0"
           title="Freehand"
         >
@@ -470,9 +516,9 @@ export function EditorToolbar({
         >
           <Type className="h-4 w-4" />
         </Button>
-        
+
         <Separator orientation="vertical" className="h-6" />
-        
+
         {/* Style Controls */}
         <input
           type="color"
@@ -494,7 +540,7 @@ export function EditorToolbar({
           className="w-16"
           title="Stroke Width"
         />
-        
+
         {selectedDiagramShapes.length > 0 && (
           <Button
             variant="ghost"
@@ -506,9 +552,9 @@ export function EditorToolbar({
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
-        
+
         <Separator orientation="vertical" className="h-6" />
-        
+
         <Button
           variant="ghost"
           size="sm"
@@ -532,7 +578,7 @@ export function EditorToolbar({
       </div>
     );
   };
-  
+
   return (
     <div className="flex items-center justify-between bg-white border-b border-gray-200 px-4 py-2 min-h-12">
       <div className="flex items-center space-x-2 overflow-x-auto">

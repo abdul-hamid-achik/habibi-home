@@ -22,7 +22,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { FloorPlanZone, FurnitureItemType } from '@/types';
-import { DEFAULT_FURNITURE_CATALOG } from '@/lib/furniture-catalog';
+import { getAllFurnitureLegacy } from '@/features/floor_plan/furniture';
 
 interface FurnitureInspectorProps {
   furniture: FurnitureItemType;
@@ -45,12 +45,12 @@ export function FurnitureInspector({
   onReplace,
   onAssignToZone
 }: FurnitureInspectorProps) {
-  
+
   const updateFurniture = (updates: Partial<FurnitureItemType>) => {
     onUpdate(furniture.id, updates);
   };
 
-  const catalogItem = DEFAULT_FURNITURE_CATALOG.find(item => item.name === furniture.name);
+  const catalogItem = getAllFurnitureLegacy().find(item => item.name === furniture.name);
   const assignedZone = zones.find(zone => zone.id === furniture.zoneId);
 
   return (
@@ -88,7 +88,7 @@ export function FurnitureInspector({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          
+
           {/* Position */}
           <div className="space-y-3">
             <Label className="text-xs font-medium">Position</Label>
@@ -244,8 +244,8 @@ export function FurnitureInspector({
           {/* Zone Assignment */}
           <div className="space-y-3">
             <Label className="text-xs font-medium">Zone Assignment</Label>
-            <Select 
-              value={furniture.zoneId || ""} 
+            <Select
+              value={furniture.zoneId || ""}
               onValueChange={(value) => onAssignToZone(value)}
             >
               <SelectTrigger className="w-full h-8">
@@ -275,12 +275,12 @@ export function FurnitureInspector({
                 <SelectValue placeholder="Replace with..." />
               </SelectTrigger>
               <SelectContent>
-                {DEFAULT_FURNITURE_CATALOG
+                {getAllFurnitureLegacy()
                   .filter(item => item.name !== furniture.name)
                   .map(item => (
                     <SelectItem key={item.name} value={item.name}>
                       <div className="flex items-center space-x-2">
-                        <div 
+                        <div
                           className="w-3 h-3 rounded border"
                           style={{ backgroundColor: item.color }}
                         />

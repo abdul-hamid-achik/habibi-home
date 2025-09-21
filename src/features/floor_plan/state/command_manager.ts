@@ -88,27 +88,27 @@ export class UpdateZoneCommand extends BaseCommand {
     private zoneId: string,
     private oldValues: Partial<FloorPlanZone>,
     private newValues: Partial<FloorPlanZone>,
-    private setState: React.Dispatch<React.SetStateAction<FloorPlanZone[]>>
+    private setState: (updater: (prev: FloorPlanZone[]) => FloorPlanZone[]) => void
   ) {
     super(`Update Zone`);
   }
 
   execute(): void {
-    this.setState(prev => prev.map(zone => 
+    this.setState(prev => prev.map(zone =>
       zone.id === this.zoneId ? { ...zone, ...this.newValues } : zone
     ));
   }
 
   undo(): void {
-    this.setState(prev => prev.map(zone => 
+    this.setState(prev => prev.map(zone =>
       zone.id === this.zoneId ? { ...zone, ...this.oldValues } : zone
     ));
   }
 
   canMergeWith(other: Command): boolean {
-    return other instanceof UpdateZoneCommand && 
-           other.zoneId === this.zoneId &&
-           Date.now() - other.timestamp < 1000; // Merge within 1 second
+    return other instanceof UpdateZoneCommand &&
+      other.zoneId === this.zoneId &&
+      Date.now() - other.timestamp < 1000; // Merge within 1 second
   }
 
   mergeWith(other: UpdateZoneCommand): Command {
@@ -162,27 +162,27 @@ export class UpdateFurnitureCommand extends BaseCommand {
     private furnitureId: string,
     private oldValues: Partial<FurnitureItemType>,
     private newValues: Partial<FurnitureItemType>,
-    private setState: React.Dispatch<React.SetStateAction<FurnitureItemType[]>>
+    private setState: (updater: (prev: FurnitureItemType[]) => FurnitureItemType[]) => void
   ) {
     super(`Update Furniture`);
   }
 
   execute(): void {
-    this.setState(prev => prev.map(furniture => 
+    this.setState(prev => prev.map(furniture =>
       furniture.id === this.furnitureId ? { ...furniture, ...this.newValues } : furniture
     ));
   }
 
   undo(): void {
-    this.setState(prev => prev.map(furniture => 
+    this.setState(prev => prev.map(furniture =>
       furniture.id === this.furnitureId ? { ...furniture, ...this.oldValues } : furniture
     ));
   }
 
   canMergeWith(other: Command): boolean {
-    return other instanceof UpdateFurnitureCommand && 
-           other.furnitureId === this.furnitureId &&
-           Date.now() - other.timestamp < 1000;
+    return other instanceof UpdateFurnitureCommand &&
+      other.furnitureId === this.furnitureId &&
+      Date.now() - other.timestamp < 1000;
   }
 
   mergeWith(other: UpdateFurnitureCommand): Command {
@@ -235,12 +235,12 @@ export class CommandManager {
 
     // Remove any commands after current index (for when we undo then do new command)
     this.history = this.history.slice(0, this.currentIndex + 1);
-    
+
     // Add command and execute
     command.execute();
     this.history.push(command);
     this.currentIndex++;
-    
+
     // Limit history size
     if (this.history.length > this.maxHistorySize) {
       this.history.shift();
@@ -251,7 +251,7 @@ export class CommandManager {
   // Undo the last command
   undo(): boolean {
     if (!this.canUndo()) return false;
-    
+
     const command = this.history[this.currentIndex];
     command.undo();
     this.currentIndex--;
@@ -261,7 +261,7 @@ export class CommandManager {
   // Redo the next command
   redo(): boolean {
     if (!this.canRedo()) return false;
-    
+
     this.currentIndex++;
     const command = this.history[this.currentIndex];
     command.execute();

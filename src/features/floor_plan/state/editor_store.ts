@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings, saveProjectDataSchema, zoneSchema, furnitureItemSchema } from '@/types';
-import { DiagramShape, validateShapes } from '../canvas/tools/diagram_schemas';
+import { DiagramShape, DrawingTool, validateShapes } from '../canvas/tools/diagram_schemas';
 
 // Editor mode type
 export type EditorMode = 'zones' | 'furniture' | 'diagrams';
@@ -13,12 +13,30 @@ export interface EditorState {
   settings: FloorPlanSettings;
   diagrams: DiagramShape[];
 
+  // Diagram selection
+  selectedDiagramId: string | null;
+
+  // Actions for diagram selection
+  setSelectedDiagramId: (id: string | null) => void;
+
   // UI state
   editorMode: EditorMode;
   selectedZoneId: string | null;
   selectedFurnitureId: string | null;
   showAIImport: boolean;
   showKeyboardShortcuts: boolean;
+
+  // Drawing state
+  currentDiagramTool: DrawingTool;
+  diagramStrokeColor: string;
+  diagramFillColor: string;
+  diagramStrokeWidth: number;
+
+  // Actions for drawing state
+  setCurrentDiagramTool: (tool: DrawingTool) => void;
+  setDiagramStrokeColor: (color: string) => void;
+  setDiagramFillColor: (color: string) => void;
+  setDiagramStrokeWidth: (width: number) => void;
 
   // Actions
   setZones: (zones: FloorPlanZone[] | ((prev: FloorPlanZone[]) => FloorPlanZone[])) => void;
@@ -76,6 +94,9 @@ const DEFAULT_SETTINGS: FloorPlanSettings = {
   canvasMode: 'centered',
   maxCanvasWidth: 1200,
   maxCanvasHeight: 800,
+  showZones: true,
+  showFurniture: true,
+  showDiagrams: true,
 };
 
 // Create the store
@@ -89,8 +110,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   editorMode: 'furniture',
   selectedZoneId: null,
   selectedFurnitureId: null,
+  selectedDiagramId: null,
   showAIImport: false,
   showKeyboardShortcuts: false,
+
+  // Drawing state
+  currentDiagramTool: 'select' as DrawingTool,
+  diagramStrokeColor: '#000000',
+  diagramFillColor: 'transparent',
+  diagramStrokeWidth: 2,
 
   // Basic setters with function support
   setZones: (zones) => set((state) => ({
@@ -113,8 +141,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setEditorMode: (editorMode) => set({ editorMode }),
   setSelectedZoneId: (selectedZoneId) => set({ selectedZoneId }),
   setSelectedFurnitureId: (selectedFurnitureId) => set({ selectedFurnitureId }),
+  setSelectedDiagramId: (selectedDiagramId) => set({ selectedDiagramId }),
   setShowAIImport: (showAIImport) => set({ showAIImport }),
   setShowKeyboardShortcuts: (showKeyboardShortcuts) => set({ showKeyboardShortcuts }),
+
+  // Drawing state setters
+  setCurrentDiagramTool: (tool) => set({ currentDiagramTool: tool }),
+  setDiagramStrokeColor: (color) => set({ diagramStrokeColor: color }),
+  setDiagramFillColor: (color) => set({ diagramFillColor: color }),
+  setDiagramStrokeWidth: (width) => set({ diagramStrokeWidth: width }),
 
   // Zone operations
   updateZone: (id, updates) => set((state) => ({

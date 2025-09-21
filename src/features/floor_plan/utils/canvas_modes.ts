@@ -116,9 +116,9 @@ export function getCanvasModeClasses(mode: CanvasMode): string {
     case 'fixed':
       return `${baseClasses}`;
     case 'fit-to-screen':
-      return `${baseClasses} w-full h-full`;
+      return `${baseClasses}`;
     case 'centered':
-      return `${baseClasses} mx-auto my-auto`;
+      return `${baseClasses}`;
     default:
       return baseClasses;
   }

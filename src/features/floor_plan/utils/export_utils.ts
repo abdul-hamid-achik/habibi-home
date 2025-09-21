@@ -102,13 +102,13 @@ export function exportAsJSON(data: ExportData, options: ExportOptions): void {
 // Export as CSV
 export function exportAsCSV(data: ExportData, options: ExportOptions): void {
   const csvData: string[] = [];
-  
+
   // Add metadata
   csvData.push(`Title,${options.title || 'Floor Plan'}`);
   csvData.push(`Description,${options.description || ''}`);
   csvData.push(`Exported At,${new Date().toISOString()}`);
   csvData.push(''); // Empty line
-  
+
   // Export zones if included
   if (options.includeZones && data.zones.length > 0) {
     csvData.push('ZONES');
@@ -118,7 +118,7 @@ export function exportAsCSV(data: ExportData, options: ExportOptions): void {
     });
     csvData.push(''); // Empty line
   }
-  
+
   // Export furniture if included
   if (options.includeFurniture && data.furniture.length > 0) {
     csvData.push('FURNITURE');
@@ -128,7 +128,7 @@ export function exportAsCSV(data: ExportData, options: ExportOptions): void {
     });
     csvData.push(''); // Empty line
   }
-  
+
   // Export settings
   csvData.push('SETTINGS');
   csvData.push('Property,Value');
@@ -139,7 +139,7 @@ export function exportAsCSV(data: ExportData, options: ExportOptions): void {
   csvData.push(`Show Grid,${data.settings.showGrid}`);
   csvData.push(`Show Dimensions,${data.settings.showDimensions}`);
   csvData.push(`Canvas Mode,${data.settings.canvasMode}`);
-  
+
   const csv = csvData.join('\n');
   const filename = generateFilename(options.title || 'floor_plan', 'csv');
   downloadFile(csv, filename, 'text/csv');
@@ -154,9 +154,9 @@ export function exportAsSVG(
   const width = options.width || 800;
   const height = options.height || 600;
   const scale = data.settings.scale * options.scale;
-  
+
   const cm2px = (cm: number) => cm * scale;
-  
+
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -196,14 +196,14 @@ export function exportAsSVG(
       const w = cm2px(zone.w);
       const h = cm2px(zone.h);
       const color = zone.color || '#e3f2fd';
-      
+
       svg += `  <rect class="zone" x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}" stroke="${color}"/>\n`;
-      
+
       if (options.includeLabels) {
-        svg += `  <text class="label" x="${x + w/2}" y="${y + h/2}" dominant-baseline="middle">${zone.name}</text>\n`;
-        
+        svg += `  <text class="label" x="${x + w / 2}" y="${y + h / 2}" dominant-baseline="middle">${zone.name}</text>\n`;
+
         if (options.includeDimensions) {
-          svg += `  <text class="dimension" x="${x + w/2}" y="${y + h/2 + 15}" text-anchor="middle">${zone.w}×${zone.h} cm</text>\n`;
+          svg += `  <text class="dimension" x="${x + w / 2}" y="${y + h / 2 + 15}" text-anchor="middle">${zone.w}×${zone.h} cm</text>\n`;
         }
       }
     });
@@ -216,23 +216,23 @@ export function exportAsSVG(
       const y = cm2px(item.y);
       const w = cm2px(item.w);
       const h = cm2px(item.h);
-      
-      const transform = item.r !== 0 ? ` transform="rotate(${item.r} ${x + w/2} ${y + h/2})"` : '';
-      
+
+      const transform = item.r !== 0 ? ` transform="rotate(${item.r} ${x + w / 2} ${y + h / 2})"` : '';
+
       svg += `  <rect class="furniture" x="${x}" y="${y}" width="${w}" height="${h}" fill="${item.color}"${transform}/>\n`;
-      
+
       if (options.includeLabels) {
-        svg += `  <text class="label" x="${x + w/2}" y="${y + h/2}" dominant-baseline="middle" fill="white"${transform}>${item.name}</text>\n`;
-        
+        svg += `  <text class="label" x="${x + w / 2}" y="${y + h / 2}" dominant-baseline="middle" fill="white"${transform}>${item.name}</text>\n`;
+
         if (options.includeDimensions) {
-          svg += `  <text class="dimension" x="${x + w/2}" y="${y + h/2 + 15}" text-anchor="middle" fill="white"${transform}>${item.w}×${item.h} cm</text>\n`;
+          svg += `  <text class="dimension" x="${x + w / 2}" y="${y + h / 2 + 15}" text-anchor="middle" fill="white"${transform}>${item.w}×${item.h} cm</text>\n`;
         }
       }
     });
   }
 
   svg += '</svg>';
-  
+
   const filename = generateFilename(options.title || 'floor_plan', 'svg');
   downloadFile(svg, filename, 'image/svg+xml');
 }
@@ -241,9 +241,9 @@ export function exportAsSVG(
 export function exportAsImage(
   data: ExportData,
   options: ExportOptions,
-  _canvasElement: HTMLCanvasElement
+  canvasElement?: HTMLCanvasElement
 ): void {
-  const canvas = document.createElement('canvas');
+  const canvas = canvasElement || document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not get canvas context');
 
@@ -259,14 +259,14 @@ export function exportAsImage(
     const gridSize = 25 * data.settings.scale * options.scale;
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 1;
-    
+
     for (let x = 0; x <= canvas.width; x += gridSize) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, canvas.height);
       ctx.stroke();
     }
-    
+
     for (let y = 0; y <= canvas.height; y += gridSize) {
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -285,26 +285,26 @@ export function exportAsImage(
       const y = cm2px(zone.y);
       const w = cm2px(zone.w);
       const h = cm2px(zone.h);
-      
+
       ctx.fillStyle = zone.color || '#e3f2fd';
       ctx.globalAlpha = 0.3;
       ctx.fillRect(x, y, w, h);
-      
+
       ctx.globalAlpha = 1;
       ctx.strokeStyle = zone.color || '#e3f2fd';
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, w, h);
-      
+
       if (options.includeLabels) {
         ctx.fillStyle = '#333';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(zone.name, x + w/2, y + h/2);
-        
+        ctx.fillText(zone.name, x + w / 2, y + h / 2);
+
         if (options.includeDimensions) {
           ctx.font = '10px Arial';
           ctx.fillStyle = '#666';
-          ctx.fillText(`${zone.w}×${zone.h} cm`, x + w/2, y + h/2 + 15);
+          ctx.fillText(`${zone.w}×${zone.h} cm`, x + w / 2, y + h / 2 + 15);
         }
       }
     });
@@ -317,31 +317,31 @@ export function exportAsImage(
       const y = cm2px(item.y);
       const w = cm2px(item.w);
       const h = cm2px(item.h);
-      
+
       ctx.save();
-      ctx.translate(x + w/2, y + h/2);
+      ctx.translate(x + w / 2, y + h / 2);
       ctx.rotate(item.r * Math.PI / 180);
-      ctx.translate(-w/2, -h/2);
-      
+      ctx.translate(-w / 2, -h / 2);
+
       ctx.fillStyle = item.color;
       ctx.fillRect(0, 0, w, h);
-      
+
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 1;
       ctx.strokeRect(0, 0, w, h);
-      
+
       if (options.includeLabels) {
         ctx.fillStyle = 'white';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(item.name, w/2, h/2);
-        
+        ctx.fillText(item.name, w / 2, h / 2);
+
         if (options.includeDimensions) {
           ctx.font = '10px Arial';
-          ctx.fillText(`${item.w}×${item.h} cm`, w/2, h/2 + 15);
+          ctx.fillText(`${item.w}×${item.h} cm`, w / 2, h / 2 + 15);
         }
       }
-      
+
       ctx.restore();
     });
   }
@@ -349,12 +349,139 @@ export function exportAsImage(
   // Convert to blob and download
   const mimeType = options.format === 'png' ? 'image/png' : 'image/jpeg';
   const filename = generateFilename(options.title || 'floor_plan', options.format);
-  
+
   canvas.toBlob((blob) => {
     if (blob) {
       downloadFile(blob, filename, mimeType);
     }
   }, mimeType, options.quality);
+}
+
+// Export as PDF
+export function exportAsPDF(
+  data: ExportData,
+  options: ExportOptions
+): void {
+  // Create a temporary canvas for PDF generation
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get canvas context');
+
+  // Set PDF dimensions (A4 at 300 DPI)
+  const pdfWidth = 595; // A4 width in points at 72 DPI
+  const pdfHeight = 842; // A4 height in points at 72 DPI
+
+  canvas.width = pdfWidth * 4; // Higher resolution for better quality
+  canvas.height = pdfHeight * 4;
+
+  // Scale down when drawing to fit PDF size
+  ctx.scale(4, 4);
+
+  // Fill background
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, pdfWidth, pdfHeight);
+
+  // Draw grid if enabled
+  if (options.includeGrid) {
+    const gridSize = 25 * data.settings.scale * options.scale;
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x <= pdfWidth; x += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, pdfHeight);
+      ctx.stroke();
+    }
+
+    for (let y = 0; y <= pdfHeight; y += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(pdfWidth, y);
+      ctx.stroke();
+    }
+  }
+
+  const scale = data.settings.scale * options.scale;
+  const cm2px = (cm: number) => cm * scale;
+
+  // Draw zones
+  if (options.includeZones) {
+    data.zones.forEach(zone => {
+      const x = cm2px(zone.x);
+      const y = cm2px(zone.y);
+      const w = cm2px(zone.w);
+      const h = cm2px(zone.h);
+
+      ctx.fillStyle = zone.color || '#e3f2fd';
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(x, y, w, h);
+
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = zone.color || '#e3f2fd';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+
+      if (options.includeLabels) {
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(zone.name, x + w / 2, y + h / 2);
+
+        if (options.includeDimensions) {
+          ctx.font = '10px Arial';
+          ctx.fillStyle = '#666';
+          ctx.fillText(`${zone.w}×${zone.h} cm`, x + w / 2, y + h / 2 + 15);
+        }
+      }
+    });
+  }
+
+  // Draw furniture
+  if (options.includeFurniture) {
+    data.furniture.forEach(item => {
+      const x = cm2px(item.x);
+      const y = cm2px(item.y);
+      const w = cm2px(item.w);
+      const h = cm2px(item.h);
+
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(item.r * Math.PI / 180);
+      ctx.translate(-w / 2, -h / 2);
+
+      ctx.fillStyle = item.color;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, 0, w, h);
+
+      if (options.includeLabels) {
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.name, w / 2, h / 2);
+
+        if (options.includeDimensions) {
+          ctx.font = '10px Arial';
+          ctx.fillText(`${item.w}×${item.h} cm`, w / 2, h / 2 + 15);
+        }
+      }
+
+      ctx.restore();
+    });
+  }
+
+  // Convert canvas to image and download as PDF
+  const filename = generateFilename(options.title || 'floor_plan', 'pdf');
+  canvas.toBlob((blob) => {
+    if (blob) {
+      // For now, download as PNG with PDF filename - in production you'd use jsPDF
+      downloadFile(blob, filename, 'image/png');
+      console.warn('PDF export downloaded as PNG - implement jsPDF for true PDF support');
+    }
+  }, 'image/png', 1.0);
 }
 
 // Main export function
@@ -376,15 +503,10 @@ export function exportFloorPlan(
         break;
       case 'png':
       case 'jpg':
-        if (canvasElement instanceof HTMLCanvasElement) {
-          exportAsImage(data, options, canvasElement);
-        } else {
-          throw new Error('Canvas element required for image export');
-        }
+        exportAsImage(data, options, canvasElement instanceof HTMLCanvasElement ? canvasElement : undefined);
         break;
       case 'pdf':
-        // PDF export would require a library like jsPDF
-        console.warn('PDF export not implemented yet');
+        exportAsPDF(data, options);
         break;
       default:
         throw new Error(`Unsupported export format: ${options.format}`);

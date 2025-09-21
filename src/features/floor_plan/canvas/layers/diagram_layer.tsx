@@ -41,6 +41,7 @@ interface DiagramLayerProps {
   settings: FloorPlanSettings;
   editorMode: 'zones' | 'furniture' | 'diagrams';
   onExport?: (dataUrl: string, format: 'png' | 'json') => void;
+  onDiagramSelect?: (id: string | null) => void;
   className?: string;
 }
 
@@ -50,6 +51,7 @@ export function DiagramLayer({
   settings,
   editorMode,
   onExport,
+  onDiagramSelect,
   className
 }: DiagramLayerProps) {
   const stageRef = useRef<Konva.Stage>(null);
@@ -115,6 +117,7 @@ export function DiagramLayer({
 
     e.cancelBubble = true;
     setSelectedDiagramId(shapeId);
+    onDiagramSelect?.(shapeId);
 
     const node = e.target;
     if (transformerRef.current) {
@@ -375,9 +378,8 @@ export function DiagramLayer({
               {DRAWING_COLORS.map(color => (
                 <button
                   key={color}
-                  className={`w-6 h-6 rounded border-2 ${
-                    drawingState.strokeColor === color ? 'border-gray-800' : 'border-gray-300'
-                  }`}
+                  className={`w-6 h-6 rounded border-2 ${drawingState.strokeColor === color ? 'border-gray-800' : 'border-gray-300'
+                    }`}
                   style={{ backgroundColor: color }}
                   onClick={() => setDrawingState(prev => ({ ...prev, strokeColor: color }))}
                 />

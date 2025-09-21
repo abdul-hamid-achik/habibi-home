@@ -10,16 +10,21 @@ import { DiagramShape } from "../canvas/tools/diagram_schemas";
 import { ModeToggle } from "./header/mode_toggle";
 import { ActionsBar } from "./header/actions_bar";
 import { AIImportToggle } from "./header/ai_import_toggle";
-import { ZoneList } from "./sidebar/zone_list";
-import { FurnitureCatalog } from "./sidebar/furniture_catalog";
-import { SelectedFurniturePanel } from "./sidebar/selected_furniture_panel";
+import { EditorToolbar } from "./header/editor_toolbar";
+import { InspectorTab } from "./sidebar/inspector_tab";
+import { LibraryTab } from "./sidebar/library_tab";
+import { LayersTab } from "./sidebar/layers_tab";
 import { KonvaStage } from "../canvas/konva_stage";
 import { useEditorStore, EditorMode } from "../state/editor_store";
-import { cm2px, px2cm, snapToGrid } from "../utils/units";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { analyzeFloorPlan } from "../services/analysis";
+import { exportFloorPlan } from "../utils/export_utils";
+import { CommandManager, UpdateZoneCommand, UpdateFurnitureCommand, AddZoneCommand } from "../state/command_manager";
+import { BackgroundImportModal } from "./overlays/background_import_modal";
+import { CalibrationModal } from "./overlays/calibration_modal";
+import { ExportModal } from "./overlays/export_modal";
 
 interface EditorShellProps {
     projectId?: string;
@@ -41,19 +46,27 @@ function EditorShell({
         zones,
         furniture,
         settings,
+        diagrams,
         editorMode,
         selectedZoneId,
         selectedFurnitureId,
+        selectedDiagramId,
         showAIImport,
         showKeyboardShortcuts,
+        currentDiagramTool,
         setEditorMode,
         setSelectedZoneId,
         setSelectedFurnitureId,
+        setSelectedDiagramId,
         setShowAIImport,
         setShowKeyboardShortcuts,
+        setCurrentDiagramTool,
+        setDiagramStrokeColor,
+        setDiagramFillColor,
+        setDiagramStrokeWidth,
+        setZones,
+        setFurniture,
         updateFurniture,
-        deleteFurniture,
-        addFurniture,
         updateZone,
         deleteZone,
         addZone,
@@ -65,6 +78,9 @@ function EditorShell({
 
     // Ref for canvas container to calculate viewport size
     const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+    // Command manager
+    const commandManagerRef = useRef(new CommandManager());
 
     // Initialize store with initial data on mount
     useEffect(() => {
@@ -78,7 +94,7 @@ function EditorShell({
             // Load defaults if no initial data
             resetToDefaults();
         }
-    }, []); // Only run on mount
+    }, [initialZones, initialFurniture, initialSettings, loadData, resetToDefaults]); // Include dependencies for proper linting
 
     // Helper function for generating IDs
     const generateId = () => Math.random().toString(36).slice(2, 9);
@@ -88,9 +104,11 @@ function EditorShell({
 
 
     // Utility functions (using shared utils)
-    const toPx = (cm: number) => cm2px(cm, settings.scale);
-    const toCm = (px: number) => px2cm(px, settings.scale);
-    const snapCm = (value: number) => snapToGrid(value, settings.snap);
+
+    // Overlays state
+    const [isBgModalOpen, setBgModalOpen] = useState(false);
+    const [isCalibrateOpen, setCalibrateOpen] = useState(false);
+    const [isExportOpen, setExportOpen] = useState(false);
 
     // Header handlers
     const handleModeChange = (mode: EditorMode) => {
@@ -120,6 +138,7 @@ function EditorShell({
     // Actions
     const resetLayout = () => {
         resetToDefaults();
+        commandManagerRef.current.clear();
     };
 
     const handleAIAnalysis = (analysis: { dimensions?: { width: number; height: number }; zones?: Array<{ zoneId?: string; name: string; x: number; y: number; w: number; h: number }> }) => {
@@ -157,7 +176,8 @@ function EditorShell({
         const catalogItem = DEFAULT_FURNITURE_CATALOG.find(cat => cat.name === catalogName);
         if (!catalogItem) return;
 
-        const newItem = {
+        const newItem: FurnitureItemType = {
+            id: generateId(),
             name: catalogItem.name,
             x: 50,
             y: 50,
@@ -167,35 +187,32 @@ function EditorShell({
             color: catalogItem.color,
         };
 
-        addFurniture(newItem);
+        setFurniture((prev: FurnitureItemType[]) => [...prev, newItem]);
     };
 
     const duplicateFurniture = () => {
         if (!selectedFurniture) return;
 
-        const newItem = {
+        const newItem: FurnitureItemType = {
             ...selectedFurniture,
+            id: generateId(),
             x: selectedFurniture.x + 20,
             y: selectedFurniture.y + 20,
         };
 
-        addFurniture(newItem);
-        // Note: addFurniture will generate a new ID and we can't easily get it back
-        // For now, we'll leave the selection as is
+        setFurniture((prev: FurnitureItemType[]) => [...prev, newItem]);
     };
 
     const deleteFurnitureItem = () => {
         if (!selectedFurnitureId) return;
-        deleteFurniture(selectedFurnitureId);
+        setFurniture((prev: FurnitureItemType[]) => prev.filter((f: FurnitureItemType) => f.id !== selectedFurnitureId));
     };
 
     // Zone handlers
-    const handleZoneDelete = (zoneId: string) => {
-        deleteZone(zoneId);
-    };
 
     const handleZoneAdd = () => {
-        const newZone = {
+        const newZone: FloorPlanZone = {
+            id: generateId(),
             zoneId: `zone_${zones.length + 1}`,
             name: `Zone ${zones.length + 1}`,
             x: 100,
@@ -203,15 +220,72 @@ function EditorShell({
             w: 200,
             h: 150,
         };
-        addZone(newZone);
+        commandManagerRef.current.executeCommand(
+            new AddZoneCommand(
+                newZone,
+                setZones as unknown as React.Dispatch<React.SetStateAction<FloorPlanZone[]>>
+            )
+        );
+        setZones((prev: FloorPlanZone[]) => [...prev, newZone]);
     };
 
     const rotateFurniture = (degrees: number) => {
         if (!selectedFurniture || !selectedFurnitureId) return;
+        const newR = (selectedFurniture.r + degrees) % 360;
+        const oldVals = { r: selectedFurniture.r };
+        const newVals = { r: newR };
+        commandManagerRef.current.executeCommand(
+            new UpdateFurnitureCommand(
+                selectedFurnitureId,
+                oldVals,
+                newVals,
+                setFurniture as unknown as React.Dispatch<React.SetStateAction<FurnitureItemType[]>>
+            )
+        );
+        setFurniture((prev: FurnitureItemType[]) => prev.map((f: FurnitureItemType) => f.id === selectedFurnitureId ? { ...f, r: newR } : f));
+    };
 
-        updateFurniture(selectedFurnitureId, {
-            r: (selectedFurniture.r + degrees) % 360
+    // Commandized wrappers for inspector edits
+    const updateFurnitureCmd = (id: string, updates: Partial<FurnitureItemType>) => {
+        const existing = furniture.find(f => f.id === id);
+        if (!existing) return updateFurniture(id, updates);
+        const oldVals: Partial<FurnitureItemType> = {};
+        Object.keys(updates).forEach(k => {
+            const key = k as keyof FurnitureItemType;
+            if (existing[key] !== undefined) {
+                (oldVals as Record<string, unknown>)[key] = existing[key];
+            }
         });
+        commandManagerRef.current.executeCommand(
+            new UpdateFurnitureCommand(
+                id,
+                oldVals,
+                updates,
+                setFurniture
+            )
+        );
+        setFurniture((prev: FurnitureItemType[]) => prev.map((f: FurnitureItemType) => f.id === id ? { ...f, ...updates } : f));
+    };
+
+    const updateZoneCmd = (id: string, updates: Partial<FloorPlanZone>) => {
+        const existing = zones.find(z => z.id === id);
+        if (!existing) return updateZone(id, updates);
+        const oldVals: Partial<FloorPlanZone> = {};
+        Object.keys(updates).forEach(k => {
+            const key = k as keyof FloorPlanZone;
+            if (existing[key] !== undefined) {
+                (oldVals as Record<string, unknown>)[key] = existing[key];
+            }
+        });
+        commandManagerRef.current.executeCommand(
+            new UpdateZoneCommand(
+                id,
+                oldVals,
+                updates,
+                setZones
+            )
+        );
+        setZones((prev: FloorPlanZone[]) => prev.map((z: FloorPlanZone) => z.id === id ? { ...z, ...updates } : z));
     };
 
     const handleSave = () => {
@@ -225,6 +299,41 @@ function EditorShell({
         }
     };
 
+    // Toolbar undo/redo
+    const handleUndo = () => {
+        if (commandManagerRef.current.undo()) {
+            // store already updated in commands
+        }
+    };
+    const handleRedo = () => {
+        if (commandManagerRef.current.redo()) {
+            // store updated
+        }
+    };
+
+    // Export specific formats
+    const handleExportSpecific = (format: 'png' | 'svg' | 'pdf' | 'json' | 'csv') => {
+        const exportOptions = {
+            format,
+            quality: 1,
+            scale: 1,
+            includeGrid: settings.showGrid,
+            includeDimensions: settings.showDimensions,
+            includeLabels: true,
+            includeBackground: !!settings.background,
+            includeFurniture: true,
+            includeZones: true,
+            includeDiagrams: false,
+            title: 'Floor Plan Export'
+        };
+
+        exportFloorPlan(
+            { zones, furniture, settings, diagramShapes: [] },
+            exportOptions
+        );
+    };
+
+
 
     const handleDiagramExport = (dataUrl: string, format: 'png' | 'json') => {
         console.log(`Exported diagram as ${format}:`, dataUrl);
@@ -236,7 +345,7 @@ function EditorShell({
             <div className="flex items-center justify-between p-4 border-b bg-white shadow-sm">
                 <div className="flex items-center space-x-4">
                     <h1 className="text-xl font-semibold">
-                        <Link href="/">Enhanced Floor Plan Editor</Link>
+                        <Link href="/">Floor Plan Editor</Link>
                     </h1>
 
                     <ModeToggle
@@ -257,6 +366,52 @@ function EditorShell({
                     onSave={handleSave}
                 />
             </div>
+            <EditorToolbar
+                editorMode={editorMode}
+                canvasMode={settings.canvasMode}
+                scale={settings.scale}
+                showGrid={settings.showGrid}
+                snapEnabled={settings.snap > 0}
+                selectedZone={zones.find(z => z.id === selectedZoneId) || null}
+                selectedFurniture={selectedFurniture}
+                selectedDiagramShapes={[]}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onZoomIn={() => updateSettings({ scale: Math.min(1.4, settings.scale + 0.05) })}
+                onZoomOut={() => updateSettings({ scale: Math.max(0.4, settings.scale - 0.05) })}
+                onZoomFit={() => updateSettings({ canvasMode: 'fit-to-screen' })}
+                onToggleGrid={() => updateSettings({ showGrid: !settings.showGrid })}
+                onToggleSnap={() => updateSettings({ snap: settings.snap > 0 ? 0 : 5 })}
+                onCanvasModeChange={(mode) => updateSettings({ canvasMode: mode })}
+                onCalibrateScale={() => setCalibrateOpen(true)}
+                onImportBackground={() => setBgModalOpen(true)}
+                onExportPNG={() => handleExportSpecific('png')}
+                onExportSVG={() => handleExportSpecific('svg')}
+                onExportPDF={() => handleExportSpecific('pdf')}
+                onExportJSON={() => handleExportSpecific('json')}
+                onExportCSV={() => handleExportSpecific('csv')}
+                onAddZone={handleZoneAdd}
+                onDeleteZone={() => selectedZoneId && deleteZone(selectedZoneId)}
+                onBringZoneForward={() => { }}
+                onSendZoneBack={() => { }}
+                onAddFromLibrary={() => { }}
+                onDuplicateFurniture={duplicateFurniture}
+                onDeleteFurniture={deleteFurnitureItem}
+                onRotateFurniture={rotateFurniture}
+                onFurnitureRotationChange={(r) => selectedFurnitureId && updateFurnitureCmd(selectedFurnitureId, { r })}
+                onAssignToZone={(zoneId) => selectedFurnitureId && updateFurnitureCmd(selectedFurnitureId, { zoneId: zoneId || undefined })}
+                onSelectDiagramTool={setCurrentDiagramTool}
+                onSetDiagramStroke={setDiagramStrokeColor}
+                onSetDiagramFill={setDiagramFillColor}
+                onSetDiagramStrokeWidth={setDiagramStrokeWidth}
+                onDeleteDiagramShapes={() => { }}
+                onExportDiagramPNG={() => setExportOpen(true)}
+                onExportDiagramJSON={() => setExportOpen(true)}
+                zones={zones}
+                canUndo={commandManagerRef.current.canUndo()}
+                canRedo={commandManagerRef.current.canRedo()}
+                currentDiagramTool={currentDiagramTool}
+            />
 
             <div className="flex flex-1 overflow-hidden min-h-0">
                 {/* Sidebar */}
@@ -288,31 +443,71 @@ function EditorShell({
                                     </CardContent>
                                 </Card>
                             </div>
-                        ) : editorMode === 'zones' ? (
-                            <ZoneList
-                                zones={zones}
-                                selectedZoneId={selectedZoneId}
-                                onZoneSelect={setSelectedZoneId}
-                                onZoneUpdate={updateZone}
-                                onZoneDelete={handleZoneDelete}
-                                onZoneAdd={handleZoneAdd}
-                            />
                         ) : (
                             <div className="space-y-4">
-                                <FurnitureCatalog
+                                <LibraryTab
                                     furnitureCount={furniture.length}
                                     onAddFurniture={addFurnitureFromCatalog}
                                 />
-
-                                {selectedFurniture && (
-                                    <SelectedFurniturePanel
-                                        selectedFurniture={selectedFurniture}
-                                        onUpdateFurniture={updateFurniture}
-                                        onDuplicateFurniture={duplicateFurniture}
-                                        onDeleteFurniture={deleteFurnitureItem}
-                                        onRotateFurniture={rotateFurniture}
-                                    />
-                                )}
+                                <InspectorTab
+                                    editorMode={editorMode}
+                                    selectedZone={zones.find(z => z.id === selectedZoneId) || null}
+                                    selectedFurniture={selectedFurniture}
+                                    selectedDiagramShape={diagrams.find(d => d.id === selectedDiagramId) || null}
+                                    zones={zones}
+                                    onUpdateZone={updateZoneCmd}
+                                    onDeleteZone={() => selectedZoneId && deleteZone(selectedZoneId)}
+                                    onUpdateFurniture={updateFurnitureCmd}
+                                    onDeleteFurniture={deleteFurnitureItem}
+                                    onDuplicateFurniture={duplicateFurniture}
+                                    onRotateFurniture={rotateFurniture}
+                                    onReplaceFurniture={addFurnitureFromCatalog}
+                                    onAssignToZone={(zoneId) => selectedFurnitureId && updateFurnitureCmd(selectedFurnitureId, { zoneId: zoneId || undefined })}
+                                    onUpdateDiagramShape={(id, updates) => {
+                                        // TODO: Implement diagram update
+                                        console.log('Update diagram shape:', id, updates);
+                                    }}
+                                    onDeleteDiagramShape={() => {
+                                        if (selectedDiagramId) {
+                                            // TODO: Implement diagram deletion
+                                            console.log('Delete diagram shape:', selectedDiagramId);
+                                        }
+                                    }}
+                                    onDuplicateDiagramShape={() => {
+                                        if (selectedDiagramId) {
+                                            // TODO: Implement diagram duplication
+                                            console.log('Duplicate diagram shape:', selectedDiagramId);
+                                        }
+                                    }}
+                                />
+                                <LayersTab
+                                    zones={zones}
+                                    furniture={furniture}
+                                    diagramShapes={diagrams}
+                                    showGrid={settings.showGrid}
+                                    showZones={settings.showZones ?? true}
+                                    showFurniture={settings.showFurniture ?? true}
+                                    showDiagrams={settings.showDiagrams ?? true}
+                                    backgroundImage={settings.background ? { visible: settings.background.visible ?? true, locked: !!settings.background.locked, opacity: settings.background.opacity ?? 0.6 } : undefined}
+                                    onToggleLayerVisibility={(layer) => {
+                                        if (layer === 'grid') updateSettings({ showGrid: !settings.showGrid });
+                                        if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), visible: !settings.background?.visible } } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+                                        if (layer === 'zones') updateSettings({ showZones: !settings.showZones });
+                                        if (layer === 'furniture') updateSettings({ showFurniture: !settings.showFurniture });
+                                        if (layer === 'diagrams') updateSettings({ showDiagrams: !settings.showDiagrams });
+                                    }}
+                                    onToggleLayerLock={(layer) => {
+                                        if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), locked: !settings.background?.locked } } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+                                    }}
+                                    onSetLayerOpacity={(layer, opacity) => {
+                                        if (layer === 'background') updateSettings({ background: { ...(settings.background || {}), opacity } } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+                                    }}
+                                    onMoveLayerUp={() => { }}
+                                    onMoveLayerDown={() => { }}
+                                    onConfigureLayer={(layer) => {
+                                        if (layer === 'background') setBgModalOpen(true);
+                                    }}
+                                />
                             </div>
                         )}
                     </div>
@@ -329,8 +524,21 @@ function EditorShell({
                         selectedFurnitureId={selectedFurnitureId}
                         onZoneSelect={setSelectedZoneId}
                         onFurnitureSelect={setSelectedFurnitureId}
-                        onFurnitureUpdate={updateFurniture}
+                        onDiagramSelect={setSelectedDiagramId}
+                        onFurnitureUpdate={(id, updates) => {
+                            // Commandize furniture updates
+                            const existing = furniture.find(f => f.id === id);
+                            if (!existing) return updateFurniture(id, updates);
+                            const oldVals: Partial<FurnitureItemType> = {};
+                            Object.keys(updates).forEach(k => { (oldVals as Record<string, unknown>)[k as keyof FurnitureItemType] = existing[k as keyof FurnitureItemType]; });
+                            commandManagerRef.current.executeCommand(new UpdateFurnitureCommand(id, oldVals, updates, setFurniture));
+                            setFurniture((prev: FurnitureItemType[]) => prev.map((f: FurnitureItemType) => f.id === id ? { ...f, ...updates } : f));
+                        }}
+                        onBackgroundUpdate={(bg) => updateSettings({ background: { ...(settings.background || {}), ...bg } } as FloorPlanSettings)}
                         onDiagramExport={handleDiagramExport}
+                        showZones={settings.showZones ?? true}
+                        showFurniture={settings.showFurniture ?? true}
+                        showDiagrams={settings.showDiagrams ?? true}
                         containerRef={canvasContainerRef as React.RefObject<HTMLDivElement>}
                         className="w-full h-full"
                     />
@@ -341,6 +549,38 @@ function EditorShell({
             <FloatingSettingsPanel
                 settings={settings}
                 onSettingsChange={(updates) => updateSettings(updates)}
+            />
+
+            {/* Background import */}
+            <BackgroundImportModal
+                isOpen={isBgModalOpen}
+                onClose={() => setBgModalOpen(false)}
+                onImport={(bg) => updateSettings({ background: bg })}
+                currentSettings={settings.background}
+            />
+
+            {/* Calibration */}
+            <CalibrationModal
+                isOpen={isCalibrateOpen}
+                onClose={() => setCalibrateOpen(false)}
+                canvasWidth={settings.apartmentWidth}
+                canvasHeight={settings.apartmentHeight}
+                currentScale={settings.scale}
+                onScaleChange={(newScale) => updateSettings({ scale: newScale })}
+            />
+
+            {/* Export modal using export_utils */}
+            <ExportModal
+                isOpen={isExportOpen}
+                onClose={() => setExportOpen(false)}
+                onExport={(opts) => {
+                    exportFloorPlan({ zones, furniture, settings, diagramShapes: [] }, opts);
+                }}
+                zones={zones}
+                furniture={furniture}
+                settings={settings}
+                canvasWidth={settings.apartmentWidth * settings.scale}
+                canvasHeight={settings.apartmentHeight * settings.scale}
             />
         </div>
     );
@@ -353,9 +593,7 @@ export type { EditorShellProps };
 // Named export for consistency
 export { EditorShell };
 
-// Temporary compatibility export - will be removed in future tasks
-export { EditorShell as FloorPlanEditor };
-export type { EditorShellProps as FloorPlanEditorProps };
+// Removed legacy compatibility exports
 
 // Sidebar inline panel to replace legacy FloorPlanUploader
 function AIImportPanel({ onAnalysisComplete }: { onAnalysisComplete: (analysis: { dimensions?: { width: number; height: number }; zones?: Array<{ zoneId?: string; name: string; x: number; y: number; w: number; h: number }> }) => void }) {

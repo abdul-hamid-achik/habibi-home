@@ -18,7 +18,7 @@ import {
   RefreshCw,
   Plus
 } from 'lucide-react';
-import { DEFAULT_FURNITURE_CATALOG } from '@/lib/furniture-catalog';
+import { getAllFurnitureLegacy } from '@/features/floor_plan/furniture';
 
 interface LibraryTabProps {
   onAddFurniture: (catalogName: string) => void;
@@ -53,9 +53,12 @@ export function LibraryTab({
     decor: <Leaf className="w-4 h-4" />,
   };
 
+  // Get furniture from registry
+  const furnitureCatalog = useMemo(() => getAllFurnitureLegacy(), []);
+
   // Filter furniture based on search and category
   const filteredFurniture = useMemo(() => {
-    return DEFAULT_FURNITURE_CATALOG.filter(item => {
+    return furnitureCatalog.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.category.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = !selectedCategory || item.category === selectedCategory;
@@ -65,11 +68,11 @@ export function LibraryTab({
 
       return matchesSearch && matchesCategory && isNotCurrentItem;
     });
-  }, [searchTerm, selectedCategory, isReplaceMode, selectedFurnitureName]);
+  }, [searchTerm, selectedCategory, isReplaceMode, selectedFurnitureName, furnitureCatalog]);
 
   // Get unique categories
   const availableCategories = useMemo(() => {
-    const categories = [...new Set(DEFAULT_FURNITURE_CATALOG.map(item => item.category))];
+    const categories = [...new Set(furnitureCatalog.map(item => item.category))];
     return categories.map(category => {
       const categoryData = {
         sofa: { name: "Sofas", icon: <Sofa className="w-4 h-4" /> },
@@ -84,7 +87,7 @@ export function LibraryTab({
       }[category] || { name: category, icon: <Package className="w-4 h-4" /> };
       return { id: category, ...categoryData };
     });
-  }, []);
+  }, [furnitureCatalog]);
 
   return (
     <div className="h-full flex flex-col">

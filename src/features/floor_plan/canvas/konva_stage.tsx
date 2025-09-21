@@ -5,8 +5,9 @@ import Konva from 'konva';
 import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from '@/types';
 import { GridLayer } from './layers/grid_layer';
 import { ZonesLayer } from './layers/zones_layer';
-import { FurnitureLayer } from '../editor/furniture_layer';
+import { FurnitureLayer } from './layers/furniture_layer';
 import { DiagramLayer } from './layers/diagram_layer';
+import { BackgroundLayer } from './layers/background_layer';
 import {
   calculateCanvasSize,
   calculateCenterOffset,
@@ -31,12 +32,26 @@ interface KonvaStageProps {
   // Event handlers
   onZoneSelect: (id: string | null) => void;
   onFurnitureSelect: (id: string | null) => void;
+  onDiagramSelect?: (id: string | null) => void;
   onFurnitureUpdate: (id: string, updates: Partial<FurnitureItemType>) => void;
   onDiagramExport?: (dataUrl: string, format: 'png' | 'json') => void;
+  onBackgroundUpdate?: (updates: {
+    opacity?: number;
+    scale?: number;
+    rotation?: number;
+    offsetX?: number;
+    offsetY?: number;
+    locked?: boolean;
+  }) => void;
 
   // Container props
   className?: string;
   containerRef?: React.RefObject<HTMLDivElement>;
+
+  // Layer visibility
+  showZones?: boolean;
+  showFurniture?: boolean;
+  showDiagrams?: boolean;
 }
 
 export function KonvaStage({
@@ -48,13 +63,19 @@ export function KonvaStage({
   selectedFurnitureId,
   onZoneSelect,
   onFurnitureSelect,
+  onDiagramSelect,
   onFurnitureUpdate,
   onDiagramExport,
+  onBackgroundUpdate,
   className,
-  containerRef
+  containerRef,
+  showZones = true,
+  showFurniture = true,
+  showDiagrams = true
 }: KonvaStageProps) {
   const stageRef = useRef<Konva.Stage>(null);
-  const [viewport, setViewport] = useState<ViewportSize>({ width: 800, height: 600 });
+  const [viewport, setViewport] = useState<ViewportSize | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Update viewport size when container size changes
   useEffect(() => {
@@ -65,13 +86,19 @@ export function KonvaStage({
           width: rect.width - 32, // Account for padding
           height: rect.height - 32,
         });
+        // Mark as initialized after first measurement
+        if (!isInitialized) {
+          setIsInitialized(true);
+        }
       }
     };
 
+    // Initial measurement without delay
     updateViewport();
 
     const handleResize = () => {
-      setTimeout(updateViewport, 100); // Debounce resize events
+      // Use requestAnimationFrame for smoother updates
+      requestAnimationFrame(updateViewport);
     };
 
     window.addEventListener('resize', handleResize);
@@ -85,12 +112,21 @@ export function KonvaStage({
     }
 
     return () => window.removeEventListener('resize', handleResize);
-  }, [containerRef]);
+  }, [containerRef, isInitialized]);
 
   // Calculate canvas dimensions based on mode
   const canvasSize: CanvasSize = useMemo(() => {
     const needsViewport = requiresViewport(settings.canvasMode);
-    return calculateCanvasSize(settings, needsViewport ? viewport : undefined);
+    // Use viewport only when available and needed
+    const viewportToUse = needsViewport && viewport ? viewport : undefined;
+    // For initial render, use settings dimensions to prevent jumps
+    if (needsViewport && !viewport) {
+      return {
+        width: Math.min(settings.apartmentWidth * settings.scale, settings.maxCanvasWidth || 1200),
+        height: Math.min(settings.apartmentHeight * settings.scale, settings.maxCanvasHeight || 800)
+      };
+    }
+    return calculateCanvasSize(settings, viewportToUse);
   }, [settings, viewport]);
 
   // Calculate effective scale (may differ from settings.scale in fit-to-screen mode)
@@ -98,13 +134,10 @@ export function KonvaStage({
     return getEffectiveScale(settings, canvasSize);
   }, [settings, canvasSize]);
 
-  // Calculate center offset for centered mode
+  // Calculate center offset for centered mode - removed as we'll use flexbox centering instead
   const centerOffset = useMemo(() => {
-    if (settings.canvasMode === 'centered') {
-      return calculateCenterOffset(canvasSize, viewport);
-    }
     return { x: 0, y: 0 };
-  }, [settings.canvasMode, canvasSize, viewport]);
+  }, []);
 
   // Updated settings with effective scale for layers
   const effectiveSettings = useMemo(() => ({
@@ -116,14 +149,12 @@ export function KonvaStage({
     const baseStyle: React.CSSProperties = {
       width: canvasSize.width,
       height: canvasSize.height,
+      // Remove transform-based centering to prevent shifts
+      transition: 'none', // Disable any transitions during initial render
     };
 
-    if (settings.canvasMode === 'centered') {
-      baseStyle.transform = `translate(${centerOffset.x}px, ${centerOffset.y}px)`;
-    }
-
     return baseStyle;
-  }, [canvasSize, settings.canvasMode, centerOffset]);
+  }, [canvasSize]);
 
   const containerClasses = useMemo(() => {
     return getCanvasModeClasses(settings.canvasMode);
@@ -140,7 +171,7 @@ export function KonvaStage({
 
   // Render based on editor mode
   const renderContent = () => {
-    if (editorMode === 'diagrams') {
+    if (editorMode === 'diagrams' && showDiagrams) {
       return (
         <DiagramLayer
           width={canvasSize.width}
@@ -158,6 +189,20 @@ export function KonvaStage({
         className={containerClasses}
         style={containerStyle}
       >
+        {/* Background Image Layer (below grid) */}
+        <BackgroundLayer
+          url={settings.background?.url}
+          opacity={settings.background?.opacity}
+          scale={settings.background?.scale}
+          rotation={settings.background?.rotation}
+          offsetX={settings.background?.offsetX}
+          offsetY={settings.background?.offsetY}
+          locked={settings.background?.locked}
+          canvasWidth={canvasSize.width}
+          canvasHeight={canvasSize.height}
+          editorScale={effectiveSettings.scale}
+          onImageUpdate={onBackgroundUpdate}
+        />
         {/* Grid Layer */}
         <GridLayer
           settings={effectiveSettings}
@@ -166,44 +211,47 @@ export function KonvaStage({
         />
 
         {/* Zones Layer */}
-        <ZonesLayer
-          zones={zones}
-          settings={effectiveSettings}
-          selectedZoneId={selectedZoneId}
-          onZoneSelect={onZoneSelect}
-          editorMode={editorMode}
-        />
+        {showZones && (
+          <ZonesLayer
+            zones={zones}
+            settings={effectiveSettings}
+            selectedZoneId={selectedZoneId}
+            onZoneSelect={onZoneSelect}
+            editorMode={editorMode}
+          />
+        )}
 
         {/* Konva Furniture Layer */}
-        <FurnitureLayer
-          furniture={furniture}
-          settings={effectiveSettings}
-          selectedFurnitureId={selectedFurnitureId}
-          onFurnitureSelect={onFurnitureSelect}
-          onFurnitureUpdate={onFurnitureUpdate}
-          editorMode={editorMode}
-          width={canvasSize.width}
-          height={canvasSize.height}
-        />
+        {showFurniture && (
+          <FurnitureLayer
+            furniture={furniture}
+            settings={effectiveSettings}
+            selectedFurnitureId={selectedFurnitureId}
+            onFurnitureSelect={onFurnitureSelect}
+            onFurnitureUpdate={onFurnitureUpdate}
+            editorMode={editorMode}
+            width={canvasSize.width}
+            height={canvasSize.height}
+          />
+        )}
       </div>
     );
   };
 
+  // Don't render until viewport is initialized to prevent layout shift
+  if (!viewport && requiresViewport(settings.canvasMode)) {
+    return (
+      <div className={`w-full h-full flex items-center justify-center ${className || ''}`}>
+        <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className={`w-full h-full ${className || ''}`}>
-      {settings.canvasMode === 'fit-to-screen' ? (
-        <div className="w-full h-full flex items-center justify-center">
-          {renderContent()}
-        </div>
-      ) : settings.canvasMode === 'centered' ? (
-        <div className="w-full h-full flex items-center justify-center">
-          {renderContent()}
-        </div>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          {renderContent()}
-        </div>
-      )}
+    <div className={`w-full h-full flex items-center justify-center overflow-auto ${className || ''}`}>
+      <div className="flex items-center justify-center min-w-full min-h-full">
+        {renderContent()}
+      </div>
     </div>
   );
 }
