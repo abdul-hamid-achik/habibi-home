@@ -4,7 +4,7 @@
  */
 
 import { useRef, useCallback, useMemo } from 'react';
-import { FloorPlanZone, FurnitureItemType, FloorPlanSettings } from '@/types';
+import { FloorPlanZone, FurnitureItemType } from '@/types';
 import {
   CommandManager,
   AddZoneCommand,
@@ -20,7 +20,6 @@ interface UseEditorCommandsProps {
   // Current state for reference
   zones: FloorPlanZone[];
   furniture: FurnitureItemType[];
-  settings: FloorPlanSettings;
 
   // Selection state
   selectedZoneId: string | null;
@@ -41,7 +40,6 @@ interface UseEditorCommandsProps {
 export function useEditorCommands({
   zones,
   furniture,
-  settings,
   selectedZoneId,
   selectedFurnitureId,
   setSelectedZoneId,

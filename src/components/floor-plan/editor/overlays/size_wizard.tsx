@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,9 +42,9 @@ export function SizeWizard({
   };
 
   // Calculate area from custom dimensions
-  const calculateAreaFromDimensions = () => {
+  const calculateAreaFromDimensions = useCallback(() => {
     return Math.round((customWidth * customHeight) * 100) / 100; // m²
-  };
+  }, [customWidth, customHeight]);
 
   // Get final dimensions based on mode
   const getFinalDimensions = () => {

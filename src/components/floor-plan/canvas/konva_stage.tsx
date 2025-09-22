@@ -96,7 +96,7 @@ export function KonvaStage({
   showFurniture = true,
   showDiagrams = true
 }: KonvaStageProps) {
-  const stageRef = useRef<Konva.Stage>(null);
+  const _stageRef = useRef<Konva.Stage>(null);
   const [viewport, setViewport] = useState<ViewportSize | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
