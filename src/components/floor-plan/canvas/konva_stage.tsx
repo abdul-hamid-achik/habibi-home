@@ -208,8 +208,8 @@ export function KonvaStage({
           height={canvasSize.height}
         />
 
-        {/* Diagram Layer (only in diagrams mode) */}
-        {editorMode === 'diagrams' && showDiagrams && (
+        {/* Diagram Layer */}
+        {showDiagrams && (
           <DiagramLayer
             width={canvasSize.width}
             height={canvasSize.height}

@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Settings, Sofa, Pencil } from "lucide-react";
+import { MapPin, Sofa, Ruler } from "lucide-react";
 
 export type EditorMode = 'zones' | 'furniture' | 'diagrams';
 
@@ -11,33 +11,36 @@ interface ModeToggleProps {
 
 export function ModeToggle({ currentMode, onModeChange }: ModeToggleProps) {
     return (
-        <div className="flex border rounded-lg overflow-hidden">
+        <div className="flex border rounded-lg overflow-hidden bg-white">
             <Button
                 size="sm"
                 variant={currentMode === 'zones' ? 'default' : 'ghost'}
                 onClick={() => onModeChange('zones')}
-                className="rounded-none"
+                className="rounded-none px-3"
+                title="Plan and define room layouts and zones"
             >
-                <Settings className="w-4 h-4 mr-2" />
-                Zones
+                <MapPin className="w-4 h-4 mr-1" />
+                Plan Rooms
             </Button>
             <Button
                 size="sm"
                 variant={currentMode === 'furniture' ? 'default' : 'ghost'}
                 onClick={() => onModeChange('furniture')}
-                className="rounded-none"
+                className="rounded-none px-3"
+                title="Add and arrange furniture in your space"
             >
-                <Sofa className="w-4 h-4 mr-2" />
-                Furniture
+                <Sofa className="w-4 h-4 mr-1" />
+                Add Furniture
             </Button>
             <Button
                 size="sm"
                 variant={currentMode === 'diagrams' ? 'default' : 'ghost'}
                 onClick={() => onModeChange('diagrams')}
-                className="rounded-none"
+                className="rounded-none px-3"
+                title="Measure spaces and add notes or drawings"
             >
-                <Pencil className="w-4 h-4 mr-2" />
-                Diagrams
+                <Ruler className="w-4 h-4 mr-1" />
+                Measure & Draw
             </Button>
         </div>
     );

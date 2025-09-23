@@ -120,6 +120,17 @@ export function LayersTab({
     }
   };
 
+  const getLayerDisplayName = (type: string) => {
+    switch (type) {
+      case 'zones': return 'Room Plans';
+      case 'furniture': return 'Furniture';
+      case 'diagrams': return 'Measurements & Notes';
+      case 'grid': return 'Grid';
+      case 'background': return 'Background Image';
+      default: return type;
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex-1 space-y-4 overflow-y-auto">
@@ -143,7 +154,7 @@ export function LayersTab({
                     {getLayerIcon(layer.type)}
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">
-                        {layer.name}
+                        {getLayerDisplayName(layer.type)}
                       </div>
                       {layer.count !== undefined && (
                         <div className="text-xs text-gray-500">
@@ -244,19 +255,19 @@ export function LayersTab({
             {/* Layer Statistics */}
             <div className="border-t pt-3 mt-3">
               <div className="text-xs text-gray-500 space-y-1">
-                <div>Total: {zones.length + furniture.length + diagramShapes.length} objects</div>
+                <div>Total: {zones.length + furniture.length + diagramShapes.length} items planned</div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
                     <div className="font-medium">{zones.length}</div>
-                    <div>Zones</div>
+                    <div className="text-xs">Room Plans</div>
                   </div>
                   <div>
                     <div className="font-medium">{furniture.length}</div>
-                    <div>Furniture</div>
+                    <div className="text-xs">Furniture</div>
                   </div>
                   <div>
                     <div className="font-medium">{diagramShapes.length}</div>
-                    <div>Diagrams</div>
+                    <div className="text-xs">Measurements</div>
                   </div>
                 </div>
               </div>

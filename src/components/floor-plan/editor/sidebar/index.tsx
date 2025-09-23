@@ -131,6 +131,46 @@ export function EditorSidebar(props: EditorSidebarProps) {
                     <AIImportPanel onAnalysisComplete={() => { }} />
                 ) : (
                     <div className="space-y-4">
+                        {/* Mode-specific helpful tips */}
+                        {editorMode === 'zones' && (
+                            <Card className="border-blue-200 bg-blue-50">
+                                <CardContent className="pt-4">
+                                    <div className="text-sm text-blue-800">
+                                        <strong>💡 Room Planning Mode</strong>
+                                        <div className="text-xs mt-1 text-blue-600">
+                                            Define your room layouts and zones. Start by clicking &quot;Add Zone&quot; in the toolbar to create room boundaries.
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {editorMode === 'furniture' && (
+                            <Card className="border-green-200 bg-green-50">
+                                <CardContent className="pt-4">
+                                    <div className="text-sm text-green-800">
+                                        <strong>🛋️ Furniture Mode</strong>
+                                        <div className="text-xs mt-1 text-green-600">
+                                            Add and arrange furniture in your planned rooms. Use the furniture catalog below to add items.
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {editorMode === 'diagrams' && (
+                            <Card className="border-purple-200 bg-purple-50">
+                                <CardContent className="pt-4">
+                                    <div className="text-sm text-purple-800">
+                                        <strong>📏 Measure & Draw Mode</strong>
+                                        <div className="text-xs mt-1 text-purple-600">
+                                            Measure spaces, add dimensions, and create notes. Your drawings stay visible when you switch modes.
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         {/* Diagram Tools Info - only show in diagrams mode */}
                         {editorMode === 'diagrams' && (
                             <Card>

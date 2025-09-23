@@ -85,7 +85,7 @@ export function DiagramLayer({
   };
 
   const handleShapeClick = (e: KonvaEventObject<MouseEvent>, shapeId: string) => {
-    if (editorMode !== 'diagrams' || drawingState.tool !== 'select') return;
+    if (drawingState.tool !== 'select') return;
 
     e.cancelBubble = true;
     onDiagramSelect?.(shapeId);
@@ -97,6 +97,8 @@ export function DiagramLayer({
   };
 
   const handleTransformEnd = (e: KonvaEventObject<Event>) => {
+    if (editorMode !== 'diagrams') return;
+
     const node = e.target;
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
@@ -134,13 +136,17 @@ export function DiagramLayer({
   // Register event handlers for unified selection system
   useSelectionEventHandlers({
     onDiagramDelete: (id: string) => {
-      callbacks.onShapeDelete(id);
+      if (editorMode === 'diagrams') {
+        callbacks.onShapeDelete(id);
+      }
     },
     onDiagramDuplicate: (id: string) => {
-      const selectedShape = shapes.find(s => s.id === id);
-      if (selectedShape) {
-        const newShape = duplicateShape(selectedShape);
-        callbacks.onShapeAdd(newShape);
+      if (editorMode === 'diagrams') {
+        const selectedShape = shapes.find(s => s.id === id);
+        if (selectedShape) {
+          const newShape = duplicateShape(selectedShape);
+          callbacks.onShapeAdd(newShape);
+        }
       }
     },
   });
@@ -170,7 +176,7 @@ export function DiagramLayer({
       rotation: shape.rotation || 0,
       scaleX: shape.scaleX || 1,
       scaleY: shape.scaleY || 1,
-      draggable: drawingState.tool === 'select',
+      draggable: editorMode === 'diagrams' && drawingState.tool === 'select',
       onClick: (e: KonvaEventObject<MouseEvent>) => handleShapeClick(e, shape.id),
       onTransformEnd: handleTransformEnd,
     };
@@ -230,11 +236,6 @@ export function DiagramLayer({
         return null;
     }
   };
-
-  // Only render when in diagrams mode
-  if (editorMode !== 'diagrams') {
-    return null;
-  }
 
   // Only render the canvas layer, tools are now handled by the main editor
   return (
